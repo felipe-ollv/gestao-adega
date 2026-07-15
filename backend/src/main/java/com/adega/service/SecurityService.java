@@ -20,6 +20,14 @@ public class SecurityService {
         return UUID.fromString(value);
     }
 
+    public UUID currentUsuarioUuid() {
+        String value = jwt.getSubject();
+        if (value == null || value.isBlank()) {
+            throw new ForbiddenOperationException("Token sem usuário associado.");
+        }
+        return UUID.fromString(value);
+    }
+
     public boolean isGestor() {
         return jwt.getGroups().contains(PerfilUsuario.GESTOR.name());
     }

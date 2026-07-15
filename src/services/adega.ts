@@ -90,6 +90,11 @@ export const usuariosApi = {
   list: () => api.get<Usuario[]>("/usuarios").then((response) => response.data),
   create: (payload: { nome: string; email: string; senha: string; perfil: PerfilUsuario }) =>
     api.post<Usuario>("/usuarios", payload).then((response) => response.data),
+  update: (
+    uuid: string,
+    payload: { nome: string; email: string; senha?: string; perfil: PerfilUsuario; ativo: boolean }
+  ) => api.put<Usuario>(`/usuarios/${uuid}`, payload).then((response) => response.data),
+  delete: (uuid: string) => api.delete(`/usuarios/${uuid}`),
 };
 
 export const getApiErrorMessage = (error: any) =>

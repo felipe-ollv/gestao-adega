@@ -8,6 +8,8 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
 import Grid from "@mui/material/Grid";
+import Icon from "@mui/material/Icon";
+import IconButton from "@mui/material/IconButton";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
@@ -18,10 +20,12 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 
 import MDBox from "components/MDBox";
 import MDButton from "components/MDButton";
 import MDTypography from "components/MDTypography";
+import { useUser } from "context/user.context";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
@@ -32,12 +36,15 @@ const emptyForm = {
   email: "",
   senha: "",
   perfil: "ATENDENTE" as PerfilUsuario,
+  ativo: true,
 };
 
 function Usuarios() {
+  const { userData } = useUser();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Usuario | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -54,20 +61,64 @@ function Usuarios() {
     loadUsuarios();
   }, []);
 
+  const openCreate = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (usuario: Usuario) => {
+    setEditing(usuario);
+    setForm({
+      nome: usuario.nome,
+      email: usuario.email,
+      senha: "",
+      perfil: usuario.perfil,
+      ativo: usuario.ativo,
+    });
+    setDialogOpen(true);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      await usuariosApi.create(form);
+      if (editing) {
+        await usuariosApi.update(editing.uuid, {
+          nome: form.nome,
+          email: form.email,
+          perfil: form.perfil,
+          ativo: form.ativo,
+          ...(form.senha ? { senha: form.senha } : {}),
+        });
+      } else {
+        await usuariosApi.create({
+          nome: form.nome,
+          email: form.email,
+          senha: form.senha,
+          perfil: form.perfil,
+        });
+      }
       setDialogOpen(false);
       setForm(emptyForm);
+      setEditing(null);
       await loadUsuarios();
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (usuario: Usuario) => {
+    setError("");
+    try {
+      await usuariosApi.delete(usuario.uuid);
+      await loadUsuarios();
+    } catch (deleteError) {
+      setError(getApiErrorMessage(deleteError));
     }
   };
 
@@ -84,7 +135,7 @@ function Usuarios() {
               Controle de acesso por perfil.
             </MDTypography>
           </MDBox>
-          <MDButton variant="gradient" color="info" onClick={() => setDialogOpen(true)}>
+          <MDButton variant="gradient" color="info" onClick={openCreate}>
             Novo usuário
           </MDButton>
         </MDBox>
@@ -104,20 +155,43 @@ function Usuarios() {
                   <TableCell>E-mail</TableCell>
                   <TableCell>Perfil</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell align="right">Ações</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {usuarios.map((usuario) => (
-                  <TableRow key={usuario.uuid}>
-                    <TableCell>{usuario.nome}</TableCell>
-                    <TableCell>{usuario.email}</TableCell>
-                    <TableCell>{usuario.perfil}</TableCell>
-                    <TableCell>{usuario.ativo ? "Ativo" : "Inativo"}</TableCell>
-                  </TableRow>
-                ))}
+                {usuarios.map((usuario) => {
+                  const isCurrentUser = usuario.uuid === userData?.sub;
+
+                  return (
+                    <TableRow key={usuario.uuid}>
+                      <TableCell>{usuario.nome}</TableCell>
+                      <TableCell>{usuario.email}</TableCell>
+                      <TableCell>{usuario.perfil}</TableCell>
+                      <TableCell>{usuario.ativo ? "Ativo" : "Inativo"}</TableCell>
+                      <TableCell align="right">
+                        <Tooltip title="Editar">
+                          <IconButton color="info" onClick={() => openEdit(usuario)}>
+                            <Icon>edit</Icon>
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title={isCurrentUser ? "Não é possível excluir seu próprio usuário" : "Excluir"}>
+                          <span>
+                            <IconButton
+                              color="error"
+                              disabled={isCurrentUser || loading}
+                              onClick={() => handleDelete(usuario)}
+                            >
+                              <Icon>delete</Icon>
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {usuarios.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4}>Nenhum usuário cadastrado.</TableCell>
+                    <TableCell colSpan={5}>Nenhum usuário cadastrado.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -128,7 +202,7 @@ function Usuarios() {
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <MDBox component="form" onSubmit={handleSubmit}>
-          <DialogTitle>Novo usuário</DialogTitle>
+          <DialogTitle>{editing ? "Editar usuário" : "Novo usuário"}</DialogTitle>
           <DialogContent>
             <Grid container spacing={2} mt={0.5}>
               <Grid item xs={12}>
@@ -154,11 +228,12 @@ function Usuarios() {
                 <TextField
                   label="Senha"
                   type="password"
-                  required
+                  required={!editing}
                   fullWidth
                   inputProps={{ minLength: 8 }}
                   value={form.senha}
                   onChange={(event) => setForm({ ...form, senha: event.target.value })}
+                  helperText={editing ? "Preencha apenas se quiser alterar a senha." : ""}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -176,6 +251,23 @@ function Usuarios() {
                   </Select>
                 </FormControl>
               </Grid>
+              {editing && (
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      label="Status"
+                      value={form.ativo ? "ativo" : "inativo"}
+                      onChange={(event) =>
+                        setForm({ ...form, ativo: event.target.value === "ativo" })
+                      }
+                    >
+                      <MenuItem value="ativo">Ativo</MenuItem>
+                      <MenuItem value="inativo">Inativo</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              )}
             </Grid>
           </DialogContent>
           <DialogActions>
