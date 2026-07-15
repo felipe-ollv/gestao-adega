@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, ReactNode } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import { ThemeProvider } from "@mui/material/styles";
@@ -9,12 +9,6 @@ import MobileTabbar from "examples/MobileTabbar";
 import MDSnackbar from "components/MDSnackbar";
 
 import theme from "assets/theme";
-import themeRTL from "assets/theme/theme-rtl";
-import themeDark from "assets/theme-dark";
-import themeDarkRTL from "assets/theme-dark/theme-rtl";
-
-import { CacheProvider } from "@emotion/react";
-import createCache, { EmotionCache } from "@emotion/cache";
 
 import routes, { AppRoute } from "routes";
 import { useMaterialUIController, setMiniSidenav } from "context";
@@ -72,10 +66,9 @@ const getRoutes = (allRoutes: AppRoute[]): ReactNode =>
 export default function App() {
   // @ts-ignore
   const [controller, dispatch] = useMaterialUIController();
-  const { miniSidenav, direction, layout, sidenavColor, darkMode } = controller;
+  const { miniSidenav, layout, sidenavColor } = controller;
   const [onMouseEnter, setOnMouseEnter] = useState(false);
   const [showSessionNotice, setShowSessionNotice] = useState(false);
-  const rtlCache = useMemo<EmotionCache>(() => createCache({ key: "rtl" }), []);
   const { pathname } = useLocation();
 
   const { token, shouldShowSessionNotice, consumeSessionNotice } = useUser();
@@ -94,10 +87,6 @@ export default function App() {
       setOnMouseEnter(false);
     }
   };
-
-  useEffect(() => {
-    document.body.setAttribute("dir", direction);
-  }, [direction]);
 
   useEffect(() => {
     document.documentElement.scrollTop = 0;
@@ -148,22 +137,8 @@ export default function App() {
     />
   );
 
-  if (direction === "rtl") {
-    return (
-      <CacheProvider value={rtlCache}>
-        <ThemeProvider theme={darkMode ? themeDarkRTL : themeRTL}>
-          <CssBaseline />
-          {sidebar}
-          {appRoutes}
-          {mobileTabbar}
-          {sessionNotice}
-        </ThemeProvider>
-      </CacheProvider>
-    );
-  }
-
   return (
-    <ThemeProvider theme={darkMode ? themeDark : theme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       {sidebar}
       {appRoutes}

@@ -21,6 +21,7 @@ import Tooltip from "@mui/material/Tooltip";
 import MDBox from "components/MDBox";
 import MDButton from "components/MDButton";
 import MDTypography from "components/MDTypography";
+import { useUser } from "context/user.context";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
@@ -37,6 +38,7 @@ const emptyForm = {
 };
 
 function Produtos() {
+  const { isGestor } = useUser();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Produto | null>(null);
@@ -126,9 +128,11 @@ function Produtos() {
               Estoque controlado por unidades, com venda opcional por caixa.
             </MDTypography>
           </MDBox>
-          <MDButton variant="gradient" color="info" onClick={openCreate}>
-            Novo produto
-          </MDButton>
+          {isGestor && (
+            <MDButton variant="gradient" color="info" onClick={openCreate}>
+              Novo produto
+            </MDButton>
+          )}
         </MDBox>
 
         {error && (
@@ -147,7 +151,7 @@ function Produtos() {
                   <TableCell>Un./caixa</TableCell>
                   <TableCell>Valor unidade</TableCell>
                   <TableCell>Valor caixa</TableCell>
-                  <TableCell align="right">Ações</TableCell>
+                  {isGestor && <TableCell align="right">Ações</TableCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -160,23 +164,25 @@ function Produtos() {
                     <TableCell>
                       {produto.valorCaixa ? currency.format(Number(produto.valorCaixa)) : "-"}
                     </TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Editar">
-                        <IconButton color="info" onClick={() => openEdit(produto)}>
-                          <Icon>edit</Icon>
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Excluir">
-                        <IconButton color="error" onClick={() => handleDelete(produto)}>
-                          <Icon>delete</Icon>
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
+                    {isGestor && (
+                      <TableCell align="right">
+                        <Tooltip title="Editar">
+                          <IconButton color="info" onClick={() => openEdit(produto)}>
+                            <Icon>edit</Icon>
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Excluir">
+                          <IconButton color="error" onClick={() => handleDelete(produto)}>
+                            <Icon>delete</Icon>
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
                 {produtos.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6}>Nenhum produto cadastrado.</TableCell>
+                    <TableCell colSpan={isGestor ? 6 : 5}>Nenhum produto cadastrado.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

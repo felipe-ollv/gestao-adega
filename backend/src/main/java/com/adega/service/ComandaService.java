@@ -117,8 +117,13 @@ public class ComandaService {
         }
 
         Comanda comanda = findCurrentAdegaComanda(uuid);
-        if (comanda.status != StatusComanda.ABERTA) {
-            throw new BusinessException("Comanda já está fechada.");
+        if (request.status() == StatusComanda.FIADO && comanda.status != StatusComanda.ABERTA) {
+            throw new BusinessException("Apenas comandas abertas podem ser fechadas como fiado.");
+        }
+        if (request.status() == StatusComanda.PAGA
+                && comanda.status != StatusComanda.ABERTA
+                && comanda.status != StatusComanda.FIADO) {
+            throw new BusinessException("Comanda já está paga.");
         }
 
         comanda.status = request.status();

@@ -60,22 +60,32 @@ function MobileTabbar({ routes }: MobileTabbarProps) {
       <BottomNavigation
         showLabels
         value={visibleRoutes.some((route) => route.route === pathname) ? pathname : "/dashboard"}
-        sx={{
-          height: 68,
-          "& .MuiBottomNavigationAction-root": {
-            minWidth: 0,
-            px: 0.5,
-            color: "text.secondary",
-          },
-          "& .Mui-selected": {
-            color: "info.main",
-          },
-          "& .MuiBottomNavigationAction-label": {
-            fontSize: "0.68rem",
-            lineHeight: 1.15,
-            letterSpacing: 0,
-            whiteSpace: "nowrap",
-          },
+        sx={(theme) => {
+          const selectedColor = theme.palette.info.main;
+
+          return {
+            height: 68,
+            "& .MuiBottomNavigationAction-root": {
+              minWidth: 0,
+              px: 0.5,
+              color: "text.secondary",
+            },
+            "& .MuiBottomNavigationAction-root.Mui-selected": {
+              color: `${selectedColor} !important`,
+            },
+            "& .MuiBottomNavigationAction-root.Mui-selected .MuiBottomNavigationAction-label": {
+              color: `${selectedColor} !important`,
+            },
+            "& .MuiBottomNavigationAction-root.Mui-selected .MuiSvgIcon-root, & .MuiBottomNavigationAction-root.Mui-selected .material-icons": {
+              color: `${selectedColor} !important`,
+            },
+            "& .MuiBottomNavigationAction-label": {
+              fontSize: "0.68rem",
+              lineHeight: 1.15,
+              letterSpacing: 0,
+              whiteSpace: "nowrap",
+            },
+          };
         }}
       >
         {visibleRoutes.map((route) => (

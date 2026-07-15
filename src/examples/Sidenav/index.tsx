@@ -5,6 +5,7 @@ import ButtonBase from "@mui/material/ButtonBase";
 import Divider from "@mui/material/Divider";
 
 import MDTypography from "components/MDTypography";
+import { useUser } from "context/user.context";
 import { AppRoute } from "routes";
 
 type SidenavProps = {
@@ -17,7 +18,21 @@ type SidenavProps = {
 };
 
 function Sidenav({ brandName, routes, onMouseEnter, onMouseLeave }: SidenavProps) {
-  const navRoutes = routes.filter((route) => route.type === "collapse" && route.route);
+  const { userData } = useUser();
+  const groups = Array.isArray(userData?.groups)
+    ? userData.groups
+    : typeof userData?.groups === "string"
+      ? [userData.groups]
+      : [];
+  const userRole = userData?.perfil || userData?.ts;
+  const navRoutes = routes.filter(
+    (route) =>
+      route.type === "collapse" &&
+      route.route &&
+      (!route.roles?.length ||
+        route.roles.includes(userRole) ||
+        route.roles.some((role) => groups.includes(role)))
+  );
 
   return (
     <Box

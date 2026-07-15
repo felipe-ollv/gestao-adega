@@ -14,6 +14,7 @@ import TableRow from "@mui/material/TableRow";
 import MDBox from "components/MDBox";
 import MDButton from "components/MDButton";
 import MDTypography from "components/MDTypography";
+import { useUser } from "context/user.context";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
@@ -21,17 +22,42 @@ import { Comanda, Produto, comandasApi, getApiErrorMessage, produtosApi } from "
 
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-function StatCard({ label, value, helper }: { label: string; value: string | number; helper: string }) {
+const statCardColors = {
+  open: "linear-gradient(135deg, #1A73E8 0%, #1557B0 100%)",
+  credit: "linear-gradient(135deg, #F59E0B 0%, #B45309 100%)",
+  paid: "linear-gradient(135deg, #16A34A 0%, #0F766E 100%)",
+  stock: "linear-gradient(135deg, #DC2626 0%, #9F1239 100%)",
+};
+
+type StatCardTone = keyof typeof statCardColors;
+
+function StatCard({
+  label,
+  value,
+  helper,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  helper: string;
+  tone: StatCardTone;
+}) {
   return (
-    <Card sx={{ height: "100%" }}>
+    <Card
+      sx={{
+        height: "100%",
+        background: statCardColors[tone],
+        color: "#fff",
+      }}
+    >
       <MDBox p={3}>
-        <MDTypography variant="button" color="text" fontWeight="medium">
+        <MDTypography variant="button" fontWeight="medium" sx={{ color: "#fff", opacity: 0.9 }}>
           {label}
         </MDTypography>
-        <MDTypography variant="h3" fontWeight="bold">
+        <MDTypography variant="h3" fontWeight="bold" sx={{ color: "#fff" }}>
           {value}
         </MDTypography>
-        <MDTypography variant="caption" color="text">
+        <MDTypography variant="caption" sx={{ color: "#fff", opacity: 0.85 }}>
           {helper}
         </MDTypography>
       </MDBox>
@@ -40,6 +66,7 @@ function StatCard({ label, value, helper }: { label: string; value: string | num
 }
 
 function Home() {
+  const { isGestor } = useUser();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [comandas, setComandas] = useState<Comanda[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,12 +96,13 @@ function Home() {
   const metrics = useMemo(() => {
     const abertas = comandas.filter((comanda) => comanda.status === "ABERTA");
     const fiado = comandas.filter((comanda) => comanda.status === "FIADO");
+    const fiadoTotal = fiado.reduce((acc, comanda) => acc + Number(comanda.total || 0), 0);
     const faturamento = comandas
       .filter((comanda) => comanda.status === "PAGA")
       .reduce((acc, comanda) => acc + Number(comanda.total || 0), 0);
     const baixoEstoque = produtos.filter((produto) => produto.quantidadeEstoqueUnidades <= 12);
 
-    return { abertas, fiado, faturamento, baixoEstoque };
+    return { abertas, fiado, fiadoTotal, faturamento, baixoEstoque };
   }, [comandas, produtos]);
 
   return (
@@ -102,17 +130,39 @@ function Home() {
         )}
 
         <Grid container spacing={3}>
-          <Grid item xs={12} md={3}>
-            <StatCard label="Comandas abertas" value={metrics.abertas.length} helper="Em atendimento" />
+          <Grid item xs={12} md={isGestor ? 3 : 4}>
+            <StatCard
+              label="Comandas abertas"
+              value={metrics.abertas.length}
+              helper="Em atendimento"
+              tone="open"
+            />
           </Grid>
-          <Grid item xs={12} md={3}>
-            <StatCard label="Fiado" value={metrics.fiado.length} helper="Pendências de cobrança" />
+          <Grid item xs={12} md={isGestor ? 3 : 4}>
+            <StatCard
+              label="Fiado"
+              value={metrics.fiado.length}
+              helper={`A receber: ${currency.format(metrics.fiadoTotal)}`}
+              tone="credit"
+            />
           </Grid>
-          <Grid item xs={12} md={3}>
-            <StatCard label="Faturado" value={currency.format(metrics.faturamento)} helper="Comandas pagas" />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <StatCard label="Baixo estoque" value={metrics.baixoEstoque.length} helper="Produtos com até 12 un." />
+          {isGestor && (
+            <Grid item xs={12} md={3}>
+              <StatCard
+                label="Faturado"
+                value={currency.format(metrics.faturamento)}
+                helper="Comandas pagas"
+                tone="paid"
+              />
+            </Grid>
+          )}
+          <Grid item xs={12} md={isGestor ? 3 : 4}>
+            <StatCard
+              label="Baixo estoque"
+              value={metrics.baixoEstoque.length}
+              helper="Produtos com até 12 un."
+              tone="stock"
+            />
           </Grid>
 
           <Grid item xs={12} lg={7}>

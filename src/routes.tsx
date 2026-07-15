@@ -7,7 +7,6 @@ import Produtos from "layouts/produtos";
 import Usuarios from "layouts/usuarios";
 
 import Icon from "@mui/material/Icon";
-import Dashboard from "layouts/dashboard";
 
 export type AppRoute = {
   type?: string;

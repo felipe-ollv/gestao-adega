@@ -56,7 +56,7 @@ api.interceptors.response.use(
     const status = error?.response?.status;
     const isPublic = isPublicPath(error?.config?.url);
 
-    if (!isPublic && (status === 401 || status === 403)) {
+    if (!isPublic && status === 401) {
       handleUnauthorized();
     }
 

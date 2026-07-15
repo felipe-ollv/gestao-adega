@@ -33,7 +33,8 @@ const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "
 
 function Comandas() {
   const { isGestor } = useUser();
-  const [comandas, setComandas] = useState<Comanda[]>([]);
+  const [comandasAbertas, setComandasAbertas] = useState<Comanda[]>([]);
+  const [comandasFiado, setComandasFiado] = useState<Comanda[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [selectedUuid, setSelectedUuid] = useState("");
   const [novoResponsavel, setNovoResponsavel] = useState("");
@@ -44,9 +45,14 @@ function Comandas() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const allComandas = useMemo(
+    () => [...comandasAbertas, ...comandasFiado],
+    [comandasAbertas, comandasFiado]
+  );
+
   const selectedComanda = useMemo(
-    () => comandas.find((comanda) => comanda.uuid === selectedUuid) || comandas[0],
-    [comandas, selectedUuid]
+    () => allComandas.find((comanda) => comanda.uuid === selectedUuid) || allComandas[0],
+    [allComandas, selectedUuid]
   );
 
   const selectedProduto = produtos.find((produto) => produto.uuid === produtoUuid);
@@ -54,14 +60,16 @@ function Comandas() {
   const loadData = async () => {
     setError("");
     try {
-      const [comandasData, produtosData] = await Promise.all([
+      const [abertasData, fiadoData, produtosData] = await Promise.all([
         comandasApi.list("ABERTA"),
+        comandasApi.list("FIADO"),
         produtosApi.list(),
       ]);
-      setComandas(comandasData);
+      setComandasAbertas(abertasData);
+      setComandasFiado(fiadoData);
       setProdutos(produtosData);
-      if (!selectedUuid && comandasData[0]) {
-        setSelectedUuid(comandasData[0].uuid);
+      if (!selectedUuid && (abertasData[0] || fiadoData[0])) {
+        setSelectedUuid((abertasData[0] || fiadoData[0]).uuid);
       }
     } catch (loadError) {
       setError(getApiErrorMessage(loadError));
@@ -80,7 +88,7 @@ function Comandas() {
     setError("");
     try {
       const comanda = await comandasApi.open(novoResponsavel);
-      setComandas((current) => [comanda, ...current]);
+      setComandasAbertas((current) => [comanda, ...current]);
       setSelectedUuid(comanda.uuid);
       setNovoResponsavel("");
     } catch (openError) {
@@ -102,7 +110,7 @@ function Comandas() {
         quantidade: Number(quantidade),
         tipoMedida,
       });
-      setComandas((current) =>
+      setComandasAbertas((current) =>
         current.map((comanda) => (comanda.uuid === updated.uuid ? updated : comanda))
       );
       setProdutoUuid("");
@@ -123,9 +131,11 @@ function Comandas() {
     setError("");
     try {
       await comandasApi.close(selectedComanda.uuid, status);
-      const next = comandas.filter((comanda) => comanda.uuid !== selectedComanda.uuid);
-      setComandas(next);
-      setSelectedUuid(next[0]?.uuid || "");
+      const nextAbertas = comandasAbertas.filter((comanda) => comanda.uuid !== selectedComanda.uuid);
+      const nextFiado = comandasFiado.filter((comanda) => comanda.uuid !== selectedComanda.uuid);
+      setComandasAbertas(nextAbertas);
+      setComandasFiado(nextFiado);
+      setSelectedUuid(nextAbertas[0]?.uuid || nextFiado[0]?.uuid || "");
       setClosingDialog(false);
     } catch (closeError) {
       setError(getApiErrorMessage(closeError));
@@ -135,6 +145,7 @@ function Comandas() {
   };
 
   const medidaDisponivel = tipoMedida === "UNIDADE" || Boolean(selectedProduto?.valorCaixa);
+  const selectedIsFiado = selectedComanda?.status === "FIADO";
   const totalPreview =
     selectedProduto && medidaDisponivel
       ? Number(quantidade) *
@@ -174,7 +185,7 @@ function Comandas() {
                     Comandas abertas
                   </MDTypography>
                   <MDBox display="flex" flexDirection="column" gap={1}>
-                    {comandas.map((comanda) => (
+                    {comandasAbertas.map((comanda) => (
                       <MDButton
                         key={comanda.uuid}
                         variant={selectedComanda?.uuid === comanda.uuid ? "contained" : "outlined"}
@@ -203,9 +214,55 @@ function Comandas() {
                         {comanda.nomeResponsavel} - {currency.format(Number(comanda.total || 0))}
                       </MDButton>
                     ))}
-                    {comandas.length === 0 && (
+                    {comandasAbertas.length === 0 && (
                       <MDTypography variant="button" color="text">
                         Nenhuma comanda aberta.
+                      </MDTypography>
+                    )}
+                  </MDBox>
+                </MDBox>
+              </Card>
+            </MDBox>
+
+            <MDBox mt={3}>
+              <Card>
+                <MDBox p={3}>
+                  <MDTypography variant="h6" fontWeight="medium" mb={2}>
+                    Comandas no fiado
+                  </MDTypography>
+                  <MDBox display="flex" flexDirection="column" gap={1}>
+                    {comandasFiado.map((comanda) => (
+                      <MDButton
+                        key={comanda.uuid}
+                        variant={selectedComanda?.uuid === comanda.uuid ? "contained" : "outlined"}
+                        color="warning"
+                        fullWidth
+                        onClick={() => setSelectedUuid(comanda.uuid)}
+                        sx={{
+                          minHeight: 48,
+                          justifyContent: "center",
+                          bgcolor: selectedComanda?.uuid === comanda.uuid ? "#f59e0b" : "white",
+                          borderColor: selectedComanda?.uuid === comanda.uuid ? "#f59e0b" : "#e5e7eb",
+                          color: selectedComanda?.uuid === comanda.uuid ? "#ffffff !important" : "#344767",
+                          boxShadow: selectedComanda?.uuid === comanda.uuid ? 2 : "none",
+                          "&, & span, & p": {
+                            color:
+                              selectedComanda?.uuid === comanda.uuid
+                                ? "#ffffff !important"
+                                : "#344767 !important",
+                          },
+                          "&:hover": {
+                            bgcolor: selectedComanda?.uuid === comanda.uuid ? "#d97706" : "#f8fafc",
+                            borderColor: selectedComanda?.uuid === comanda.uuid ? "#d97706" : "#cbd5e1",
+                          },
+                        }}
+                      >
+                        {comanda.nomeResponsavel} - {currency.format(Number(comanda.total || 0))}
+                      </MDButton>
+                    ))}
+                    {comandasFiado.length === 0 && (
+                      <MDTypography variant="button" color="text">
+                        Nenhuma comanda no fiado.
                       </MDTypography>
                     )}
                   </MDBox>
@@ -222,11 +279,17 @@ function Comandas() {
                     <MDTypography variant="h5" fontWeight="medium">
                       {selectedComanda?.nomeResponsavel || "Selecione uma comanda"}
                     </MDTypography>
-                    {selectedComanda && <Chip size="small" color="info" label="Aberta" />}
+                    {selectedComanda && (
+                      <Chip
+                        size="small"
+                        color={selectedIsFiado ? "warning" : "info"}
+                        label={selectedIsFiado ? "Fiado" : "Aberta"}
+                      />
+                    )}
                   </MDBox>
                   {selectedComanda && (
                     <MDButton variant="gradient" color="success" onClick={() => setClosingDialog(true)}>
-                      Fechar
+                      {selectedIsFiado ? "Marcar como paga" : "Fechar"}
                     </MDButton>
                   )}
                 </MDBox>
@@ -239,87 +302,74 @@ function Comandas() {
 
                 {selectedComanda && (
                   <>
-                    <MDBox component="form" onSubmit={handleAddItem} mb={3}>
-                      <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} md={5}>
-                          <TextField
-                            select
-                            label="Produto"
-                            required
-                            fullWidth
-                            value={produtoUuid}
-                            onChange={(event) => setProdutoUuid(event.target.value)}
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                minHeight: 56,
-                                alignItems: "center",
-                              },
-                              "& .MuiSelect-select": {
-                                minHeight: "24px !important",
-                                display: "flex",
-                                alignItems: "center",
-                                py: "16.5px",
-                              },
-                              "& .MuiInputLabel-root": {
-                                lineHeight: 1.4375,
-                              },
-                            }}
-                          >
-                            {produtos.map((produto) => (
-                              <MenuItem key={produto.uuid} value={produto.uuid}>
-                                {produto.nome} ({produto.quantidadeEstoqueUnidades} un.)
-                              </MenuItem>
-                            ))}
-                          </TextField>
-                        </Grid>
-                        <Grid item xs={6} md={2}>
-                          <TextField
-                            label="Qtd."
-                            type="number"
-                            required
-                            fullWidth
-                            inputProps={{ min: 1 }}
-                            value={quantidade}
-                            onChange={(event) => setQuantidade(Number(event.target.value))}
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={5}>
-                          <ToggleButtonGroup
-                            color="info"
-                            exclusive
-                            fullWidth
-                            value={tipoMedida}
-                            onChange={(_, value) => value && setTipoMedida(value)}
-                          >
-                            <ToggleButton value="UNIDADE">
-                              Unidade{" "}
-                              {selectedProduto ? currency.format(Number(selectedProduto.valorUnidade)) : ""}
-                            </ToggleButton>
-                            <ToggleButton value="CAIXA" disabled={!selectedProduto?.valorCaixa}>
-                              Caixa{" "}
-                              {selectedProduto?.valorCaixa
-                                ? currency.format(Number(selectedProduto.valorCaixa))
-                                : ""}
-                            </ToggleButton>
-                          </ToggleButtonGroup>
-                        </Grid>
-                        <Grid item xs={12}>
-                          <MDBox display="flex" justifyContent="space-between" alignItems="center" gap={2}>
-                            <MDTypography variant="button" color="text">
-                              Prévia: {currency.format(totalPreview)}
-                            </MDTypography>
-                            <MDButton
-                              type="submit"
-                              variant="gradient"
-                              color="info"
-                              disabled={loading || !produtoUuid || !medidaDisponivel}
+                    {!selectedIsFiado && (
+                      <MDBox component="form" onSubmit={handleAddItem} mb={3}>
+                        <Grid container spacing={2} alignItems="center">
+                          <Grid item xs={12} md={5}>
+                            <TextField
+                              select
+                              label="Produto"
+                              required
+                              fullWidth
+                              value={produtoUuid}
+                              onChange={(event) => setProdutoUuid(event.target.value)}
                             >
-                              Adicionar
-                            </MDButton>
-                          </MDBox>
+                              {produtos.map((produto) => (
+                                <MenuItem key={produto.uuid} value={produto.uuid}>
+                                  {produto.nome} ({produto.quantidadeEstoqueUnidades} un.)
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </Grid>
+                          <Grid item xs={6} md={2}>
+                            <TextField
+                              label="Qtd."
+                              type="number"
+                              required
+                              fullWidth
+                              inputProps={{ min: 1 }}
+                              value={quantidade}
+                              onChange={(event) => setQuantidade(Number(event.target.value))}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={5}>
+                            <ToggleButtonGroup
+                              color="info"
+                              exclusive
+                              fullWidth
+                              value={tipoMedida}
+                              onChange={(_, value) => value && setTipoMedida(value)}
+                            >
+                              <ToggleButton value="UNIDADE">
+                                Unidade{" "}
+                                {selectedProduto ? currency.format(Number(selectedProduto.valorUnidade)) : ""}
+                              </ToggleButton>
+                              <ToggleButton value="CAIXA" disabled={!selectedProduto?.valorCaixa}>
+                                Caixa{" "}
+                                {selectedProduto?.valorCaixa
+                                  ? currency.format(Number(selectedProduto.valorCaixa))
+                                  : ""}
+                              </ToggleButton>
+                            </ToggleButtonGroup>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <MDBox display="flex" justifyContent="space-between" alignItems="center" gap={2}>
+                              <MDTypography variant="button" color="text">
+                                Prévia: {currency.format(totalPreview)}
+                              </MDTypography>
+                              <MDButton
+                                type="submit"
+                                variant="gradient"
+                                color="info"
+                                disabled={loading || !produtoUuid || !medidaDisponivel}
+                              >
+                                Adicionar
+                              </MDButton>
+                            </MDBox>
+                          </Grid>
                         </Grid>
-                      </Grid>
-                    </MDBox>
+                      </MDBox>
+                    )}
 
                     <MDBox display="flex" flexDirection="column" gap={1.5}>
                       {selectedComanda.itens.map((item, index) => (
@@ -367,7 +417,7 @@ function Comandas() {
       </MDBox>
 
       <Dialog open={closingDialog} onClose={() => setClosingDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Fechar comanda</DialogTitle>
+        <DialogTitle>{selectedIsFiado ? "Receber fiado" : "Fechar comanda"}</DialogTitle>
         <DialogContent>
           <MDTypography variant="button" color="text">
             Total: {currency.format(Number(selectedComanda?.total || 0))}
@@ -377,12 +427,36 @@ function Comandas() {
           <MDButton variant="text" color="secondary" onClick={() => setClosingDialog(false)}>
             Cancelar
           </MDButton>
-          {isGestor && (
-            <MDButton variant="outlined" color="warning" disabled={loading} onClick={() => handleCloseComanda("FIADO")}>
+          {isGestor && !selectedIsFiado && (
+            <MDButton
+              variant="contained"
+              color="warning"
+              disabled={loading}
+              onClick={() => handleCloseComanda("FIADO")}
+              sx={{
+                minWidth: 96,
+                bgcolor: "#f59e0b",
+                color: "#ffffff !important",
+                boxShadow: 2,
+                "&:hover": {
+                  bgcolor: "#d97706",
+                },
+                "&.Mui-disabled": {
+                  bgcolor: "#f3f4f6",
+                  color: "#9ca3af !important",
+                },
+              }}
+            >
               Fiado
             </MDButton>
           )}
-          <MDButton variant="gradient" color="success" disabled={loading} onClick={() => handleCloseComanda("PAGA")}>
+          <MDButton
+            variant="gradient"
+            color="success"
+            disabled={loading}
+            onClick={() => handleCloseComanda("PAGA")}
+            sx={{ minWidth: 96 }}
+          >
             Paga
           </MDButton>
         </DialogActions>
