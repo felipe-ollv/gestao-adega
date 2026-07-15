@@ -1,0 +1,67 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: adega_db
+    environment:
+      MYSQL_DATABASE: adega_management
+      MYSQL_USER: adega_user
+      MYSQL_PASSWORD: adega_password
+      MYSQL_ROOT_PASSWORD: root_password_secura
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts_sql:/docker-entrypoint-initdb.d:ro
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --innodb-buffer-pool-size=128M
+      - --max-connections=40
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uadega_user", "-padega_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: src/main/docker/Dockerfile.jvm
+    container_name: adega_backend
+    environment:
+      DB_URL: jdbc:mysql://db:3306/adega_management
+      DB_USER: adega_user
+      DB_PASSWORD: adega_password
+      CORS_ORIGINS: http://localhost
+      JWT_ISSUER: adega-api
+      JWT_PRIVATE_KEY_LOCATION: privateKey.pem
+      JWT_PUBLIC_KEY_LOCATION: publicKey.pem
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: adega_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+volumes:
+  mysql_data:
