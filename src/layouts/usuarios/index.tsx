@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import Alert from "@mui/material/Alert";
 import Card from "@mui/material/Card";
+import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -46,7 +47,10 @@ function Usuarios() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Usuario | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingUuid, setDeletingUuid] = useState<string | null>(null);
+
+  const actionLoading = saving || Boolean(deletingUuid);
 
   const loadUsuarios = async () => {
     setError("");
@@ -81,7 +85,7 @@ function Usuarios() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setLoading(true);
+    setSaving(true);
     setError("");
 
     try {
@@ -108,17 +112,20 @@ function Usuarios() {
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleDelete = async (usuario: Usuario) => {
     setError("");
+    setDeletingUuid(usuario.uuid);
     try {
       await usuariosApi.delete(usuario.uuid);
       await loadUsuarios();
     } catch (deleteError) {
       setError(getApiErrorMessage(deleteError));
+    } finally {
+      setDeletingUuid(null);
     }
   };
 
@@ -135,7 +142,7 @@ function Usuarios() {
               Controle de acesso por perfil.
             </MDTypography>
           </MDBox>
-          <MDButton variant="gradient" color="info" onClick={openCreate}>
+          <MDButton variant="gradient" color="info" disabled={actionLoading} onClick={openCreate}>
             Novo usuário
           </MDButton>
         </MDBox>
@@ -170,7 +177,11 @@ function Usuarios() {
                       <TableCell>{usuario.ativo ? "Ativo" : "Inativo"}</TableCell>
                       <TableCell align="right">
                         <Tooltip title="Editar">
-                          <IconButton color="info" onClick={() => openEdit(usuario)}>
+                          <IconButton
+                            color="info"
+                            disabled={actionLoading}
+                            onClick={() => openEdit(usuario)}
+                          >
                             <Icon>edit</Icon>
                           </IconButton>
                         </Tooltip>
@@ -178,10 +189,14 @@ function Usuarios() {
                           <span>
                             <IconButton
                               color="error"
-                              disabled={isCurrentUser || loading}
+                              disabled={isCurrentUser || actionLoading}
                               onClick={() => handleDelete(usuario)}
                             >
-                              <Icon>delete</Icon>
+                              {deletingUuid === usuario.uuid ? (
+                                <CircularProgress color="inherit" size={20} />
+                              ) : (
+                                <Icon>delete</Icon>
+                              )}
                             </IconButton>
                           </span>
                         </Tooltip>
@@ -200,7 +215,7 @@ function Usuarios() {
         </Card>
       </MDBox>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={() => !saving && setDialogOpen(false)} maxWidth="sm" fullWidth>
         <MDBox component="form" onSubmit={handleSubmit}>
           <DialogTitle>{editing ? "Editar usuário" : "Novo usuário"}</DialogTitle>
           <DialogContent>
@@ -271,10 +286,10 @@ function Usuarios() {
             </Grid>
           </DialogContent>
           <DialogActions>
-            <MDButton variant="text" color="secondary" onClick={() => setDialogOpen(false)}>
+            <MDButton variant="text" color="secondary" disabled={saving} onClick={() => setDialogOpen(false)}>
               Cancelar
             </MDButton>
-            <MDButton type="submit" variant="gradient" color="info" disabled={loading}>
+            <MDButton type="submit" variant="gradient" color="info" loading={saving} loadingText="Salvando...">
               Salvar
             </MDButton>
           </DialogActions>

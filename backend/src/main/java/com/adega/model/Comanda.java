@@ -34,7 +34,7 @@ public class Comanda extends PanacheEntityBase {
     public UUID uuid;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "adega_id", nullable = false)
+    @JoinColumn(name = "adega_uuid", referencedColumnName = "uuid", nullable = false)
     public Adega adega;
 
     @Column(name = "nome_responsavel", nullable = false, length = 100)

@@ -6,8 +6,13 @@ type AuthPayload = {
   upn?: string;
   groups?: string[] | string;
   adegaUuid?: string;
+  adegaNome?: string;
   perfil?: string;
   nome?: string;
+  statusPagamento?: string;
+  mensalidadePaga?: boolean;
+  competenciaMensalidade?: string;
+  vencimentoMensalidade?: string;
   exp?: number;
 };
 

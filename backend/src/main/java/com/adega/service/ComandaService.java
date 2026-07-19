@@ -1,6 +1,7 @@
 package com.adega.service;
 
 import com.adega.dto.AdicionarItemRequest;
+import com.adega.dto.AtualizarItemRequest;
 import com.adega.dto.ComandaRequest;
 import com.adega.dto.ComandaResponse;
 import com.adega.dto.FecharComandaRequest;
@@ -77,32 +78,55 @@ public class ComandaService {
                 .filter(candidate -> candidate.ativo)
                 .orElseThrow(() -> new BusinessException("Produto não encontrado."));
 
-        int unidadesParaDeduzir = request.quantidade();
-        BigDecimal valorAplicado = produto.valorUnidade;
-
-        if (request.tipoMedida() == TipoMedidaVenda.CAIXA) {
-            if (produto.valorCaixa == null) {
-                throw new BusinessException("Produto não configurado para venda por caixa.");
-            }
-            unidadesParaDeduzir = request.quantidade() * produto.unidadesPorCaixa;
-            valorAplicado = produto.valorCaixa;
-        }
-
-        if (produto.quantidadeEstoqueUnidades < unidadesParaDeduzir) {
-            throw new BusinessException("Estoque insuficiente para o produto: " + produto.nome);
-        }
-
-        produto.quantidadeEstoqueUnidades -= unidadesParaDeduzir;
+        ItemPricing pricing = pricingFor(produto, request.quantidade(), request.tipoMedida());
+        deductStock(produto, pricing.unidadesParaDeduzir());
 
         ComandaItem item = new ComandaItem();
         item.comanda = comanda;
         item.produto = produto;
         item.quantidadePedida = request.quantidade();
-        item.unidadesDeduzidas = unidadesParaDeduzir;
+        item.unidadesDeduzidas = pricing.unidadesParaDeduzir();
         item.tipoMedidaVendida = request.tipoMedida();
-        item.valorCobradoUnitario = valorAplicado;
+        item.valorCobradoUnitario = pricing.valorAplicado();
         comandaItemRepository.persist(item);
         comanda.itens.add(item);
+
+        return ComandaResponse.from(comanda);
+    }
+
+    @Transactional
+    public ComandaResponse updateItem(UUID comandaUuid, UUID itemUuid, AtualizarItemRequest request) {
+        Comanda comanda = findCurrentAdegaComanda(comandaUuid);
+        ensureOpen(comanda, "Itens só podem ser editados em comandas abertas.");
+
+        ComandaItem item = findCurrentAdegaComandaItem(comandaUuid, itemUuid);
+        item.produto.quantidadeEstoqueUnidades += item.unidadesDeduzidas;
+
+        Produto produto = produtoRepository.findByUuidAndAdega(request.produtoUuid(), securityService.currentAdegaUuid())
+                .filter(candidate -> candidate.ativo)
+                .orElseThrow(() -> new BusinessException("Produto não encontrado."));
+
+        ItemPricing pricing = pricingFor(produto, request.quantidade(), request.tipoMedida());
+        deductStock(produto, pricing.unidadesParaDeduzir());
+
+        item.produto = produto;
+        item.quantidadePedida = request.quantidade();
+        item.unidadesDeduzidas = pricing.unidadesParaDeduzir();
+        item.tipoMedidaVendida = request.tipoMedida();
+        item.valorCobradoUnitario = pricing.valorAplicado();
+
+        return ComandaResponse.from(comanda);
+    }
+
+    @Transactional
+    public ComandaResponse deleteItem(UUID comandaUuid, UUID itemUuid) {
+        Comanda comanda = findCurrentAdegaComanda(comandaUuid);
+        ensureOpen(comanda, "Itens só podem ser excluídos em comandas abertas.");
+
+        ComandaItem item = findCurrentAdegaComandaItem(comandaUuid, itemUuid);
+        item.produto.quantidadeEstoqueUnidades += item.unidadesDeduzidas;
+        comanda.itens.remove(item);
+        comandaItemRepository.delete(item);
 
         return ComandaResponse.from(comanda);
     }
@@ -134,5 +158,43 @@ public class ComandaService {
     private Comanda findCurrentAdegaComanda(UUID uuid) {
         return comandaRepository.findByUuidAndAdega(uuid, securityService.currentAdegaUuid())
                 .orElseThrow(() -> new BusinessException("Comanda não encontrada."));
+    }
+
+    private ComandaItem findCurrentAdegaComandaItem(UUID comandaUuid, UUID itemUuid) {
+        return comandaItemRepository
+                .findByUuidAndComandaAndAdega(itemUuid, comandaUuid, securityService.currentAdegaUuid())
+                .orElseThrow(() -> new BusinessException("Item da comanda não encontrado."));
+    }
+
+    private void ensureOpen(Comanda comanda, String message) {
+        if (comanda.status != StatusComanda.ABERTA) {
+            throw new BusinessException(message);
+        }
+    }
+
+    private ItemPricing pricingFor(Produto produto, int quantidade, TipoMedidaVenda tipoMedida) {
+        int unidadesParaDeduzir = quantidade;
+        BigDecimal valorAplicado = produto.valorUnidade;
+
+        if (tipoMedida == TipoMedidaVenda.CAIXA) {
+            if (produto.valorCaixa == null) {
+                throw new BusinessException("Produto não configurado para venda por caixa.");
+            }
+            unidadesParaDeduzir = quantidade * produto.unidadesPorCaixa;
+            valorAplicado = produto.valorCaixa;
+        }
+
+        return new ItemPricing(unidadesParaDeduzir, valorAplicado);
+    }
+
+    private void deductStock(Produto produto, int unidadesParaDeduzir) {
+        if (produto.quantidadeEstoqueUnidades < unidadesParaDeduzir) {
+            throw new BusinessException("Estoque insuficiente para o produto: " + produto.nome);
+        }
+
+        produto.quantidadeEstoqueUnidades -= unidadesParaDeduzir;
+    }
+
+    private record ItemPricing(int unidadesParaDeduzir, BigDecimal valorAplicado) {
     }
 }

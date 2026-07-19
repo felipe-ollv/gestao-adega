@@ -19,6 +19,7 @@ type SidenavProps = {
 
 function Sidenav({ brandName, routes, onMouseEnter, onMouseLeave }: SidenavProps) {
   const { userData } = useUser();
+  const displayBrandName = userData?.adegaNome || brandName || "Adega";
   const groups = Array.isArray(userData?.groups)
     ? userData.groups
     : typeof userData?.groups === "string"
@@ -51,8 +52,8 @@ function Sidenav({ brandName, routes, onMouseEnter, onMouseLeave }: SidenavProps
         zIndex: 1200,
       }}
     >
-      <MDTypography variant="h5" color="white" fontWeight="bold" px={1} py={1.5}>
-        {brandName}
+      <MDTypography variant="h5" color="grey.500" fontWeight="bold" px={1} py={1.5}>
+        {displayBrandName}
       </MDTypography>
       <Divider sx={{ borderColor: "rgba(255,255,255,0.16)", my: 1 }} />
       <Box display="flex" flexDirection="column" gap={0.75} mt={2}>

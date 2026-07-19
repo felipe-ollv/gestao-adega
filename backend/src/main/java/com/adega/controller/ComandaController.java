@@ -1,6 +1,7 @@
 package com.adega.controller;
 
 import com.adega.dto.AdicionarItemRequest;
+import com.adega.dto.AtualizarItemRequest;
 import com.adega.dto.ComandaRequest;
 import com.adega.dto.ComandaResponse;
 import com.adega.dto.FecharComandaRequest;
@@ -10,9 +11,11 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -49,6 +52,22 @@ public class ComandaController {
     @Path("/{uuid}/itens")
     public ComandaResponse addItem(@PathParam("uuid") UUID uuid, @Valid AdicionarItemRequest request) {
         return comandaService.addItem(uuid, request);
+    }
+
+    @PUT
+    @Path("/{uuid}/itens/{itemUuid}")
+    public ComandaResponse updateItem(
+            @PathParam("uuid") UUID uuid,
+            @PathParam("itemUuid") UUID itemUuid,
+            @Valid AtualizarItemRequest request
+    ) {
+        return comandaService.updateItem(uuid, itemUuid, request);
+    }
+
+    @DELETE
+    @Path("/{uuid}/itens/{itemUuid}")
+    public ComandaResponse deleteItem(@PathParam("uuid") UUID uuid, @PathParam("itemUuid") UUID itemUuid) {
+        return comandaService.deleteItem(uuid, itemUuid);
     }
 
     @PATCH

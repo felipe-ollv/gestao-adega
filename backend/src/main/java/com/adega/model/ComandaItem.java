@@ -13,6 +13,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "comanda_item")
@@ -21,12 +24,16 @@ public class ComandaItem extends PanacheEntityBase {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public Long id;
 
+    @JdbcTypeCode(SqlTypes.BINARY)
+    @Column(name = "uuid", columnDefinition = "BINARY(16)", nullable = false, unique = true)
+    public UUID uuid;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "comanda_id", nullable = false)
+    @JoinColumn(name = "comanda_uuid", referencedColumnName = "uuid", nullable = false)
     public Comanda comanda;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "produto_id", nullable = false)
+    @JoinColumn(name = "produto_uuid", referencedColumnName = "uuid", nullable = false)
     public Produto produto;
 
     @Column(name = "quantidade_pedida", nullable = false)
@@ -41,4 +48,11 @@ public class ComandaItem extends PanacheEntityBase {
 
     @Column(name = "valor_cobrado_unitario", nullable = false, precision = 10, scale = 2)
     public BigDecimal valorCobradoUnitario;
+
+    @jakarta.persistence.PrePersist
+    void prePersist() {
+        if (uuid == null) {
+            uuid = UUID.randomUUID();
+        }
+    }
 }

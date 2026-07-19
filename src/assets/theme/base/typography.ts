@@ -92,6 +92,13 @@ const typography = {
     lineHeight: 1.6,
   },
 
+  subtitle3: {
+    fontFamily: baseProperties.fontFamily,
+    fontSize: baseProperties.fontSizeSM,
+    fontWeight: baseProperties.fontWeightLight,
+    lineHeight: 1.2,
+  },
+
   body1: {
     fontFamily: baseProperties.fontFamily,
     fontSize: baseProperties.fontSizeXL,

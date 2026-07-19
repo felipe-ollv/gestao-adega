@@ -53,6 +53,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_PAYMENT_WHATSAPP_NUMBER: ${VITE_PAYMENT_WHATSAPP_NUMBER:-}
+        VITE_PAYMENT_WHATSAPP_MESSAGE: ${VITE_PAYMENT_WHATSAPP_MESSAGE:-}
     container_name: adega_frontend
     ports:
       - "80:80"

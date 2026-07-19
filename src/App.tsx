@@ -2,7 +2,10 @@ import { useState, useEffect, ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import { ThemeProvider } from "@mui/material/styles";
+import Alert from "@mui/material/Alert";
+import Button from "@mui/material/Button";
 import CssBaseline from "@mui/material/CssBaseline";
+import Snackbar from "@mui/material/Snackbar";
 
 import Sidenav from "examples/Sidenav";
 import MobileTabbar from "examples/MobileTabbar";
@@ -15,6 +18,15 @@ import { useMaterialUIController, setMiniSidenav } from "context";
 
 import { useUser } from "context/user.context";
 import { isJwtTokenValid } from "services/auth";
+
+const paymentWhatsappNumber = import.meta.env.VITE_PAYMENT_WHATSAPP_NUMBER || "";
+const paymentWhatsappDigits = paymentWhatsappNumber.replace(/\D/g, "");
+const paymentWhatsappMessage =
+  import.meta.env.VITE_PAYMENT_WHATSAPP_MESSAGE ||
+  "Olá, minha mensalidade está pendente na Gestão Comércio e gostaria de regularizar o acesso.";
+const paymentWhatsappUrl = paymentWhatsappDigits
+  ? `https://wa.me/${paymentWhatsappDigits}?text=${encodeURIComponent(paymentWhatsappMessage)}`
+  : "";
 
 function ProtectedRoute({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { token, expireSession, userData } = useUser();
@@ -71,7 +83,13 @@ export default function App() {
   const [showSessionNotice, setShowSessionNotice] = useState(false);
   const { pathname } = useLocation();
 
-  const { token, shouldShowSessionNotice, consumeSessionNotice } = useUser();
+  const {
+    token,
+    shouldShowSessionNotice,
+    shouldShowPaymentNotice,
+    consumeSessionNotice,
+    consumePaymentNotice,
+  } = useUser();
   const hasValidSession = isJwtTokenValid(token);
 
   const handleOnMouseEnter = () => {
@@ -131,10 +149,35 @@ export default function App() {
       icon="schedule"
       title="Sessão iniciada"
       dateTime="Agora"
-      content="Seu acesso será válido por 30 minutos. Após esse período, será necessário realizar um novo login."
+      content="Seu acesso será válido por 4 horas. Após esse período, será necessário realizar um novo login."
       open={showSessionNotice}
       close={() => setShowSessionNotice(false)}
     />
+  );
+
+  const paymentNotice = (
+    <Snackbar
+      open={showSessionNotice ? false : shouldShowPaymentNotice}
+      onClose={consumePaymentNotice}
+      anchorOrigin={{ vertical: "top", horizontal: "right" }}
+    >
+      <Alert
+        severity="warning"
+        onClose={consumePaymentNotice}
+        variant="filled"
+        sx={{ width: "100%", maxWidth: 460, alignItems: "center" }}
+        action={
+          paymentWhatsappUrl ? (
+            <Button color="inherit" size="small" href={paymentWhatsappUrl} target="_blank" rel="noreferrer">
+              WhatsApp
+            </Button>
+          ) : undefined
+        }
+      >
+        Mensalidade pendente. Para liberar o acesso ao painel, entre em contato pelo WhatsApp
+        {paymentWhatsappNumber ? `: ${paymentWhatsappNumber}` : "."}
+      </Alert>
+    </Snackbar>
   );
 
   return (
@@ -144,6 +187,7 @@ export default function App() {
       {appRoutes}
       {mobileTabbar}
       {sessionNotice}
+      {paymentNotice}
     </ThemeProvider>
   );
 }

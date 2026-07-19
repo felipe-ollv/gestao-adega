@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record ComandaItemResponse(
+        UUID uuid,
         UUID produtoUuid,
         String produtoNome,
         int quantidadePedida,
@@ -17,6 +18,7 @@ public record ComandaItemResponse(
     public static ComandaItemResponse from(ComandaItem item) {
         BigDecimal subtotal = item.valorCobradoUnitario.multiply(BigDecimal.valueOf(item.quantidadePedida));
         return new ComandaItemResponse(
+                item.uuid,
                 item.produto.uuid,
                 item.produto.nome,
                 item.quantidadePedida,

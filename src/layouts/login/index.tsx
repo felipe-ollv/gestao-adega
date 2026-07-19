@@ -16,6 +16,34 @@ import { setLayout, useMaterialUIController } from "context";
 import { useUser } from "context/user.context";
 import { authApi, getApiErrorMessage } from "services/adega";
 
+const paymentWhatsappNumber = import.meta.env.VITE_PAYMENT_WHATSAPP_NUMBER || "";
+const paymentWhatsappDigits = paymentWhatsappNumber.replace(/\D/g, "");
+const paymentWhatsappMessage =
+  import.meta.env.VITE_PAYMENT_WHATSAPP_MESSAGE ||
+  "Olá, minha mensalidade está pendente na Gestão Comércio e gostaria de regularizar o acesso.";
+const paymentWhatsappUrl = paymentWhatsappDigits
+  ? `https://wa.me/${paymentWhatsappDigits}?text=${encodeURIComponent(paymentWhatsappMessage)}`
+  : "";
+
+const onlyDigits = (value: string) => value.replace(/\D/g, "").slice(0, 14);
+
+const formatCpfCnpj = (value: string) => {
+  const digits = onlyDigits(value);
+
+  if (digits.length <= 11) {
+    return digits
+      .replace(/^(\d{3})(\d)/, "$1.$2")
+      .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+      .replace(/\.(\d{3})(\d{1,2})$/, ".$1-$2");
+  }
+
+  return digits
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+};
+
 function Login() {
   const [, dispatch] = useMaterialUIController();
   const navigate = useNavigate();
@@ -23,6 +51,7 @@ function Login() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [paymentPending, setPaymentPending] = useState(false);
   const [form, setForm] = useState({
     nomeAdega: "",
     cnpjCpf: "",
@@ -40,9 +69,24 @@ function Login() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const updateDocumentField = (value: string) => {
+    updateField("cnpjCpf", formatCpfCnpj(value));
+  };
+
+  const handleModeChange = (_: unknown, value: "login" | "register" | null) => {
+    if (!value) {
+      return;
+    }
+
+    setMode(value);
+    setError("");
+    setPaymentPending(false);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setPaymentPending(false);
     setLoading(true);
 
     try {
@@ -51,7 +95,12 @@ function Login() {
           ? await authApi.login(form.email, form.senha)
           : await authApi.register(form);
 
-      saveTokenAndLogin(response.token);
+      if (response.statusPagamento === "PENDENTE" || !response.token) {
+        setPaymentPending(true);
+        return;
+      }
+
+      saveTokenAndLogin(response.token, response.statusPagamento);
       navigate("/dashboard", { replace: true });
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
@@ -72,11 +121,11 @@ function Login() {
             px={{ xs: 3, md: 8 }}
             py={{ xs: 6, md: 0 }}
           >
-            <MDTypography variant="h1" color="white" fontWeight="bold" mb={2}>
-              Adega
+            <MDTypography variant="h1" color="grey.500" fontWeight="bold" mb={2}>
+              Gestāo Comércio
             </MDTypography>
-            <MDTypography variant="h5" color="white" fontWeight="regular" sx={{ opacity: 0.82 }}>
-              Gestão de produtos, estoque unificado por unidade, comandas e permissões para
+            <MDTypography variant="h5" color="grey.500" fontWeight="regular" sx={{ opacity: 0.82 }}>
+              Gestão de produtos, estoque, comandas e permissões para
               gestores e atendentes.
             </MDTypography>
           </MDBox>
@@ -93,7 +142,7 @@ function Login() {
           >
             <Card sx={{ width: "100%", maxWidth: 460, p: { xs: 3, md: 4 } }}>
               <MDTypography variant="h4" fontWeight="medium" mb={1}>
-                {mode === "login" ? "Entrar" : "Cadastrar adega"}
+                {mode === "login" ? "Entrar" : "Cadastrar Comércio"}
               </MDTypography>
               <MDTypography variant="button" color="text">
                 Acesse o painel com um usuário gestor ou atendente.
@@ -105,10 +154,10 @@ function Login() {
                   exclusive
                   fullWidth
                   value={mode}
-                  onChange={(_, value) => value && setMode(value)}
+                  onChange={handleModeChange}
                 >
                   <ToggleButton value="login">Login</ToggleButton>
-                  <ToggleButton value="register">Nova adega</ToggleButton>
+                  <ToggleButton value="register">Novo Comércio</ToggleButton>
                 </ToggleButtonGroup>
               </MDBox>
 
@@ -126,12 +175,13 @@ function Login() {
                       onChange={(event) => updateField("nomeAdega", event.target.value)}
                     />
                     <TextField
-                      label="CNPJ ou CPF"
+                      label="CPF ou CNPJ"
                       fullWidth
                       required
                       margin="normal"
+                      inputProps={{ inputMode: "numeric", maxLength: 18 }}
                       value={form.cnpjCpf}
-                      onChange={(event) => updateField("cnpjCpf", event.target.value)}
+                      onChange={(event) => updateDocumentField(event.target.value)}
                     />
                     <TextField
                       label="Nome do gestor"
@@ -170,9 +220,38 @@ function Login() {
                   </Alert>
                 )}
 
+                {paymentPending && (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    Mensalidade pendente. Para liberar o acesso ao painel, entre em contato pelo WhatsApp
+                    {paymentWhatsappNumber ? `: ${paymentWhatsappNumber}` : "."}
+                    {paymentWhatsappUrl && (
+                      <MDBox mt={1.5}>
+                        <MDButton
+                          component="a"
+                          href={paymentWhatsappUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          variant="outlined"
+                          color="warning"
+                          size="small"
+                        >
+                          Chamar no WhatsApp
+                        </MDButton>
+                      </MDBox>
+                    )}
+                  </Alert>
+                )}
+
                 <MDBox mt={3}>
-                  <MDButton type="submit" variant="gradient" color="info" fullWidth disabled={loading}>
-                    {loading ? "Processando..." : mode === "login" ? "Entrar" : "Cadastrar e entrar"}
+                  <MDButton
+                    type="submit"
+                    variant="gradient"
+                    color="info"
+                    fullWidth
+                    loading={loading}
+                    loadingText="Processando..."
+                  >
+                    {mode === "login" ? "Entrar" : "Cadastrar comércio"}
                   </MDButton>
                 </MDBox>
               </MDBox>

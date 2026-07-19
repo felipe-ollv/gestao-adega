@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import Alert from "@mui/material/Alert";
 import Card from "@mui/material/Card";
+import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -44,7 +45,10 @@ function Produtos() {
   const [editing, setEditing] = useState<Produto | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingUuid, setDeletingUuid] = useState<string | null>(null);
+
+  const actionLoading = saving || Boolean(deletingUuid);
 
   const loadProdutos = async () => {
     setError("");
@@ -79,7 +83,7 @@ function Produtos() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setLoading(true);
+    setSaving(true);
     setError("");
 
     const payload = {
@@ -101,17 +105,20 @@ function Produtos() {
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleDelete = async (produto: Produto) => {
     setError("");
+    setDeletingUuid(produto.uuid);
     try {
       await produtosApi.delete(produto.uuid);
       await loadProdutos();
     } catch (deleteError) {
       setError(getApiErrorMessage(deleteError));
+    } finally {
+      setDeletingUuid(null);
     }
   };
 
@@ -129,7 +136,7 @@ function Produtos() {
             </MDTypography>
           </MDBox>
           {isGestor && (
-            <MDButton variant="gradient" color="info" onClick={openCreate}>
+            <MDButton variant="gradient" color="info" disabled={actionLoading} onClick={openCreate}>
               Novo produto
             </MDButton>
           )}
@@ -167,13 +174,25 @@ function Produtos() {
                     {isGestor && (
                       <TableCell align="right">
                         <Tooltip title="Editar">
-                          <IconButton color="info" onClick={() => openEdit(produto)}>
+                          <IconButton
+                            color="info"
+                            disabled={actionLoading}
+                            onClick={() => openEdit(produto)}
+                          >
                             <Icon>edit</Icon>
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Excluir">
-                          <IconButton color="error" onClick={() => handleDelete(produto)}>
-                            <Icon>delete</Icon>
+                          <IconButton
+                            color="error"
+                            disabled={actionLoading}
+                            onClick={() => handleDelete(produto)}
+                          >
+                            {deletingUuid === produto.uuid ? (
+                              <CircularProgress color="inherit" size={20} />
+                            ) : (
+                              <Icon>delete</Icon>
+                            )}
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -191,7 +210,7 @@ function Produtos() {
         </Card>
       </MDBox>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={() => !saving && setDialogOpen(false)} maxWidth="sm" fullWidth>
         <MDBox component="form" onSubmit={handleSubmit}>
           <DialogTitle>{editing ? "Editar produto" : "Novo produto"}</DialogTitle>
           <DialogContent>
@@ -253,10 +272,10 @@ function Produtos() {
             </Grid>
           </DialogContent>
           <DialogActions>
-            <MDButton variant="text" color="secondary" onClick={() => setDialogOpen(false)}>
+            <MDButton variant="text" color="secondary" disabled={saving} onClick={() => setDialogOpen(false)}>
               Cancelar
             </MDButton>
-            <MDButton type="submit" variant="gradient" color="info" disabled={loading}>
+            <MDButton type="submit" variant="gradient" color="info" loading={saving} loadingText="Salvando...">
               Salvar
             </MDButton>
           </DialogActions>

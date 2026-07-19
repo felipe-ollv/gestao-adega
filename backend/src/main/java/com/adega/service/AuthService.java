@@ -5,9 +5,13 @@ import com.adega.dto.AuthResponse;
 import com.adega.dto.LoginRequest;
 import com.adega.exception.BusinessException;
 import com.adega.model.Adega;
+import com.adega.model.AdegaMensalidade;
 import com.adega.model.PerfilUsuario;
+import com.adega.model.StatusPagamento;
 import com.adega.model.Usuario;
 import com.adega.repository.AdegaRepository;
+import com.adega.repository.AdegaMensalidadeRepository;
+import com.adega.repository.AdegaPagamentoRepository;
 import com.adega.repository.UsuarioRepository;
 import io.quarkus.elytron.security.common.BcryptUtil;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -21,6 +25,12 @@ public class AuthService {
 
     @Inject
     UsuarioRepository usuarioRepository;
+
+    @Inject
+    AdegaPagamentoRepository adegaPagamentoRepository;
+
+    @Inject
+    AdegaMensalidadeRepository adegaMensalidadeRepository;
 
     @Inject
     TokenService tokenService;
@@ -50,6 +60,9 @@ public class AuthService {
         usuario.perfil = PerfilUsuario.GESTOR;
         usuarioRepository.persist(usuario);
 
+        adegaPagamentoRepository.createPending(adega);
+        adegaMensalidadeRepository.createPendingCurrentMonth(adega);
+
         return responseFor(usuario);
     }
 
@@ -66,12 +79,23 @@ public class AuthService {
     }
 
     private AuthResponse responseFor(Usuario usuario) {
+        AdegaMensalidade mensalidade = adegaMensalidadeRepository.currentMonthStatus(usuario.adega);
+        StatusPagamento statusPagamento = mensalidade.status;
+        String token = statusPagamento == StatusPagamento.PAGO
+                ? tokenService.generate(usuario, statusPagamento, mensalidade.competencia, mensalidade.dataVencimento)
+                : null;
+
         return new AuthResponse(
-                tokenService.generate(usuario),
+                token,
                 usuario.uuid,
                 usuario.adega.uuid,
+                usuario.adega.nome,
                 usuario.nome,
-                usuario.perfil
+                usuario.perfil,
+                statusPagamento,
+                statusPagamento == StatusPagamento.PAGO,
+                mensalidade.competencia,
+                mensalidade.dataVencimento
         );
     }
 

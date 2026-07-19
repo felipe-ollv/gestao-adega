@@ -12,53 +12,58 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
-import java.util.UUID;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import java.time.LocalDate;
 
 @Entity
-@Table(name = "usuario")
-public class Usuario extends PanacheEntityBase {
+@Table(
+        name = "adega_mensalidade",
+        uniqueConstraints = @UniqueConstraint(name = "uk_mensalidade_adega_competencia", columnNames = {"adega_uuid", "competencia"})
+)
+public class AdegaMensalidade extends PanacheEntityBase {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public Long id;
-
-    @JdbcTypeCode(SqlTypes.BINARY)
-    @Column(name = "uuid", columnDefinition = "BINARY(16)", nullable = false, unique = true)
-    public UUID uuid;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "adega_uuid", referencedColumnName = "uuid", nullable = false)
     public Adega adega;
 
-    @Column(nullable = false, length = 100)
-    public String nome;
-
-    @Column(nullable = false, unique = true, length = 120)
-    public String email;
-
-    @Column(name = "senha_hash", nullable = false)
-    public String senhaHash;
+    @Column(nullable = false)
+    public LocalDate competencia;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    public PerfilUsuario perfil;
+    public StatusPagamento status = StatusPagamento.PENDENTE;
 
-    @Column(name = "ativo", nullable = false)
-    public boolean ativo = true;
+    @Column(name = "data_vencimento", nullable = false)
+    public LocalDate dataVencimento;
+
+    @Column(name = "data_pagamento")
+    public Instant dataPagamento;
 
     @Column(name = "data_cadastro", nullable = false)
     public Instant dataCadastro;
 
+    @Column(name = "data_atualizacao", nullable = false)
+    public Instant dataAtualizacao;
+
     @PrePersist
     void prePersist() {
-        if (uuid == null) {
-            uuid = UUID.randomUUID();
-        }
+        Instant now = Instant.now();
         if (dataCadastro == null) {
-            dataCadastro = Instant.now();
+            dataCadastro = now;
         }
+        if (dataAtualizacao == null) {
+            dataAtualizacao = now;
+        }
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        dataAtualizacao = Instant.now();
     }
 }

@@ -12,9 +12,11 @@ type UserContextType = {
     selectedCondominium: any | null;
     setSelectedCondominium: React.Dispatch<React.SetStateAction<any | null>>;
     shouldShowSessionNotice: boolean;
-    saveTokenAndLogin: (newToken: string) => void;
+    shouldShowPaymentNotice: boolean;
+    saveTokenAndLogin: (newToken: string, statusPagamento?: string) => void;
     selectCondominium: (condominium: any) => void;
     consumeSessionNotice: () => void;
+    consumePaymentNotice: () => void;
     logout: () => void;
     expireSession: () => void;
     isGestor: boolean;
@@ -28,6 +30,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [selectedCondominium, setSelectedCondominium] = useState<any | null>(null);
   const [shouldShowSessionNotice, setShouldShowSessionNotice] = useState(false);
+  const [shouldShowPaymentNotice, setShouldShowPaymentNotice] = useState(false);
   const sessionTimeoutRef = useRef<number | null>(null);
 
   const clearSessionTimeout = () => {
@@ -45,6 +48,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setUserData(null);
     setSelectedCondominium(null);
     setShouldShowSessionNotice(false);
+    setShouldShowPaymentNotice(false);
   };
 
   const redirectToLogin = (reason?: string) => {
@@ -97,7 +101,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const saveTokenAndLogin = (newToken: string) => {
+  const saveTokenAndLogin = (newToken: string, statusPagamento?: string) => {
     const decoded = decodeJwt(newToken);
 
     if (!decoded) {
@@ -115,7 +119,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setApiToken(newToken);
     saveAuthToken(newToken);
     setShouldShowSessionNotice(true);
-    setUserData(decoded);
+    const userDataWithPayment = {
+      ...decoded,
+      statusPagamento: statusPagamento || decoded.statusPagamento,
+    };
+    setShouldShowPaymentNotice(userDataWithPayment.statusPagamento === "PENDENTE");
+    setUserData(userDataWithPayment);
     scheduleSessionExpiration(newToken);
   };
 
@@ -134,8 +143,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setShouldShowSessionNotice(false);
   };
 
+  const consumePaymentNotice = () => {
+    setShouldShowPaymentNotice(false);
+  };
+
   const logout = () => {
     resetSessionState();
+    redirectToLogin();
   };
 
   return (
@@ -147,9 +161,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         selectedCondominium,
         setSelectedCondominium,
         shouldShowSessionNotice,
+        shouldShowPaymentNotice,
         saveTokenAndLogin,
         selectCondominium,
         consumeSessionNotice,
+        consumePaymentNotice,
         logout,
         expireSession,
         isGestor: userData?.perfil === "GESTOR" || userData?.groups?.includes?.("GESTOR"),

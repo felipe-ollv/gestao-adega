@@ -180,7 +180,7 @@ function StatCard({
         <MDTypography variant="h3" fontWeight="bold" sx={{ color: "#fff" }}>
           {value}
         </MDTypography>
-        <MDTypography variant="caption" sx={{ color: "#fff", opacity: 0.85 }}>
+        <MDTypography variant="subtitle3" sx={{ color: "#fff", opacity: 0.9 }}>
           {helper}
         </MDTypography>
       </MDBox>
@@ -189,13 +189,14 @@ function StatCard({
 }
 
 function Home() {
-  const { isGestor } = useUser();
+  const { isGestor, userData } = useUser();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [comandas, setComandas] = useState<Comanda[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("day");
   const [billingValue, setBillingValue] = useState(getDefaultBillingValue("day"));
+  const adegaNome = userData?.adegaNome || "da adega";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -243,7 +244,7 @@ function Home() {
               Dashboard
             </MDTypography>
             <MDTypography variant="button" color="text">
-              Visão operacional da adega.
+              Visão operacional {adegaNome}.
             </MDTypography>
           </MDBox>
           <MDButton component={Link} to="/comandas" variant="gradient" color="info">
