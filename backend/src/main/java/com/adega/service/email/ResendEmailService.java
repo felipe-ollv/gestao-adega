@@ -10,8 +10,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
@@ -39,7 +41,7 @@ public class ResendEmailService {
         return apiKey.filter(value -> !value.isBlank()).isPresent();
     }
 
-    public EmailSendResult send(String recipient, RenderedEmail email, String idempotencyKey) {
+    public EmailSendResult send(String recipient, RenderedEmail email, String idempotencyKeySeed) {
         String key = apiKey.filter(value -> !value.isBlank())
                 .orElseThrow(() -> new IllegalStateException("RESEND_API_KEY não configurada."));
 
@@ -51,12 +53,13 @@ public class ResendEmailService {
         replyToEmail.filter(value -> !value.isBlank()).ifPresent(value -> payload.put("reply_to", value));
 
         try {
+            String payloadJson = objectMapper.writeValueAsString(payload);
             HttpRequest request = HttpRequest.newBuilder(apiUrl)
                     .timeout(Duration.ofSeconds(20))
                     .header("Authorization", "Bearer " + key)
                     .header("Content-Type", "application/json")
-                    .header("Idempotency-Key", idempotencyKey)
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                    .header("Idempotency-Key", buildIdempotencyKey(idempotencyKeySeed, payloadJson))
+                    .POST(HttpRequest.BodyPublishers.ofString(payloadJson))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -74,5 +77,9 @@ public class ResendEmailService {
         } catch (IOException exception) {
             throw new IllegalStateException("Falha ao comunicar com o Resend.", exception);
         }
+    }
+
+    static String buildIdempotencyKey(String seed, String payloadJson) {
+        return "gestao-" + UUID.nameUUIDFromBytes((seed + ":" + payloadJson).getBytes(StandardCharsets.UTF_8));
     }
 }

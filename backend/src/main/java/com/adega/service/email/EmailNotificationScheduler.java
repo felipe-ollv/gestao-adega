@@ -16,7 +16,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -26,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -252,9 +250,11 @@ public class EmailNotificationScheduler {
         boolean sentToAll = true;
         for (Usuario manager : managers) {
             String recipient = manager.email.trim().toLowerCase(Locale.ROOT);
-            String reference = notificationType.name() + ":" + eventReference + ":" + recipient;
+            String reference = notificationReference(adega, notificationType, eventReference, recipient);
+            String legacyReference = legacyNotificationReference(notificationType, eventReference, recipient);
 
-            if (notificacaoRepository.existsByReference(reference)) {
+            if (notificacaoRepository.existsByReference(reference)
+                    || notificacaoRepository.existsByReference(legacyReference)) {
                 continue;
             }
 
@@ -266,7 +266,7 @@ public class EmailNotificationScheduler {
                 EmailSendResult result = resendEmailService.send(
                         recipient,
                         email,
-                        "gestao-" + UUID.nameUUIDFromBytes(reference.getBytes(StandardCharsets.UTF_8))
+                        reference
                 );
                 notificacaoRepository.record(
                         adega,
@@ -294,6 +294,23 @@ public class EmailNotificationScheduler {
                 && !normalized.endsWith(".test")
                 && !normalized.endsWith(".invalid")
                 && !normalized.endsWith(".localhost");
+    }
+
+    static String notificationReference(
+            Adega adega,
+            TipoNotificacaoEmail notificationType,
+            String eventReference,
+            String recipient
+    ) {
+        return adega.uuid + ":" + notificationType.name() + ":" + eventReference + ":" + recipient;
+    }
+
+    static String legacyNotificationReference(
+            TipoNotificacaoEmail notificationType,
+            String eventReference,
+            String recipient
+    ) {
+        return notificationType.name() + ":" + eventReference + ":" + recipient;
     }
 
     private boolean wasCreatedBeforeToday(AdegaMensalidade monthlyPayment) {
