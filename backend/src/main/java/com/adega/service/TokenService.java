@@ -7,10 +7,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
 public class TokenService {
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Sao_Paulo");
+
     @ConfigProperty(name = "mp.jwt.verify.issuer")
     String issuer;
 
@@ -23,7 +26,15 @@ public class TokenService {
             LocalDate competenciaMensalidade,
             LocalDate vencimentoMensalidade
     ) {
-        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(durationMinutes));
+        Instant now = Instant.now();
+        Instant sessionExpiresAt = now.plus(Duration.ofMinutes(durationMinutes));
+        Instant billingCycleExpiresAt = vencimentoMensalidade
+                .plusDays(1)
+                .atStartOfDay(BUSINESS_ZONE)
+                .toInstant();
+        Instant expiresAt = sessionExpiresAt.isBefore(billingCycleExpiresAt)
+                ? sessionExpiresAt
+                : billingCycleExpiresAt;
 
         return Jwt.issuer(issuer)
                 .subject(usuario.uuid.toString())

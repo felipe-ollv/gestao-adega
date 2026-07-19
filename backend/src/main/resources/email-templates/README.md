@@ -6,7 +6,7 @@ Os templates usam placeholders no formato `{{nomeDaVariavel}}` e sao renderizado
 
 - `adegaNome`
 - `statusPagamento`
-- `competenciaMensalidade`
+- `periodoMensalidade`
 - `dataVencimento`
 - `whatsappUrl`
 - `destinatarioEmail`
@@ -15,7 +15,7 @@ Os templates usam placeholders no formato `{{nomeDaVariavel}}` e sao renderizado
 
 - `adegaNome`
 - `statusPagamento`
-- `competenciaMensalidade`
+- `periodoMensalidade`
 - `dataPagamento`
 - `dataVencimento`
 - `loginUrl`
@@ -25,7 +25,7 @@ Os templates usam placeholders no formato `{{nomeDaVariavel}}` e sao renderizado
 
 - `adegaNome`
 - `diasParaVencimento`
-- `competenciaMensalidade`
+- `periodoMensalidade`
 - `dataVencimento`
 - `valorMensalidade`
 - `whatsappUrl`
@@ -35,7 +35,7 @@ Os templates usam placeholders no formato `{{nomeDaVariavel}}` e sao renderizado
 
 - `adegaNome`
 - `statusPagamento`
-- `competenciaMensalidade`
+- `periodoMensalidade`
 - `dataVencimento`
 - `diasEmAtraso`
 - `whatsappUrl`

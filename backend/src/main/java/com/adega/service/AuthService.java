@@ -61,7 +61,7 @@ public class AuthService {
         usuarioRepository.persist(usuario);
 
         adegaPagamentoRepository.createPending(adega);
-        adegaMensalidadeRepository.createPendingCurrentMonth(adega);
+        adegaMensalidadeRepository.createPendingRegistrationCycle(adega);
 
         return responseFor(usuario);
     }
@@ -79,7 +79,7 @@ public class AuthService {
     }
 
     private AuthResponse responseFor(Usuario usuario) {
-        AdegaMensalidade mensalidade = adegaMensalidadeRepository.currentMonthStatus(usuario.adega);
+        AdegaMensalidade mensalidade = adegaMensalidadeRepository.createPendingCurrentCycle(usuario.adega);
         StatusPagamento statusPagamento = mensalidade.status;
         String token = statusPagamento == StatusPagamento.PAGO
                 ? tokenService.generate(usuario, statusPagamento, mensalidade.competencia, mensalidade.dataVencimento)

@@ -19,7 +19,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -37,7 +36,6 @@ public class EmailNotificationScheduler {
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Sao_Paulo");
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-    private static final DateTimeFormatter COMPETENCE_FORMAT = DateTimeFormatter.ofPattern("MM/yyyy");
 
     @Inject
     ResendEmailService resendEmailService;
@@ -87,7 +85,7 @@ public class EmailNotificationScheduler {
         }
 
         try {
-            ensureCurrentMonthlyPayments();
+            ensureCurrentBillingCycles();
             processPendingRegistrations();
             processMonthlyPayments();
             processLowStockProducts();
@@ -96,17 +94,13 @@ public class EmailNotificationScheduler {
         }
     }
 
-    private void ensureCurrentMonthlyPayments() {
-        adegaRepository.listAll().forEach(mensalidadeRepository::createPendingCurrentMonth);
+    private void ensureCurrentBillingCycles() {
+        adegaRepository.listAll().forEach(mensalidadeRepository::createPendingCurrentCycle);
     }
 
     private void processPendingRegistrations() {
         for (Adega adega : adegaRepository.listAll()) {
-            LocalDate registrationCompetence = YearMonth.from(
-                    adega.dataCadastro.atZone(BUSINESS_ZONE)
-            ).atDay(1);
-
-            mensalidadeRepository.findByAdegaAndCompetencia(adega, registrationCompetence)
+            mensalidadeRepository.findRegistrationCycle(adega)
                     .filter(monthlyPayment -> monthlyPayment.status == StatusPagamento.PENDENTE)
                     .ifPresent(monthlyPayment -> sendPendingRegistration(adega, monthlyPayment));
         }
@@ -176,7 +170,7 @@ public class EmailNotificationScheduler {
                 Map.of(
                         "adegaNome", adega.nome,
                         "statusPagamento", "Pendente",
-                        "competenciaMensalidade", formatCompetence(monthlyPayment.competencia),
+                        "periodoMensalidade", formatBillingPeriod(monthlyPayment),
                         "dataVencimento", formatDate(monthlyPayment.dataVencimento),
                         "whatsappUrl", whatsappUrl(adega)
                 )
@@ -196,7 +190,7 @@ public class EmailNotificationScheduler {
                 Map.of(
                         "adegaNome", monthlyPayment.adega.nome,
                         "statusPagamento", "Pago",
-                        "competenciaMensalidade", formatCompetence(monthlyPayment.competencia),
+                        "periodoMensalidade", formatBillingPeriod(monthlyPayment),
                         "dataPagamento", formatDateTime(paymentDate),
                         "dataVencimento", formatDate(monthlyPayment.dataVencimento),
                         "loginUrl", appUrl("/entrar")
@@ -213,7 +207,7 @@ public class EmailNotificationScheduler {
                 Map.of(
                         "adegaNome", monthlyPayment.adega.nome,
                         "diasParaVencimento", daysUntilDue,
-                        "competenciaMensalidade", formatCompetence(monthlyPayment.competencia),
+                        "periodoMensalidade", formatBillingPeriod(monthlyPayment),
                         "dataVencimento", formatDate(monthlyPayment.dataVencimento),
                         "valorMensalidade", monthlyFeeDisplay,
                         "whatsappUrl", whatsappUrl(monthlyPayment.adega)
@@ -230,7 +224,7 @@ public class EmailNotificationScheduler {
                 Map.of(
                         "adegaNome", monthlyPayment.adega.nome,
                         "statusPagamento", "Pendente",
-                        "competenciaMensalidade", formatCompetence(monthlyPayment.competencia),
+                        "periodoMensalidade", formatBillingPeriod(monthlyPayment),
                         "dataVencimento", formatDate(monthlyPayment.dataVencimento),
                         "diasEmAtraso", daysOverdue,
                         "whatsappUrl", whatsappUrl(monthlyPayment.adega)
@@ -325,7 +319,7 @@ public class EmailNotificationScheduler {
         return date.atZone(BUSINESS_ZONE).format(DATE_TIME_FORMAT);
     }
 
-    private String formatCompetence(LocalDate competence) {
-        return competence.format(COMPETENCE_FORMAT);
+    private String formatBillingPeriod(AdegaMensalidade monthlyPayment) {
+        return formatDate(monthlyPayment.competencia) + " a " + formatDate(monthlyPayment.dataVencimento);
     }
 }
