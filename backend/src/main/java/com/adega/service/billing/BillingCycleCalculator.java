@@ -13,6 +13,11 @@ public final class BillingCycleCalculator {
         return cycleAtOffset(registrationDate, 0);
     }
 
+    public static BillingCycle fromPaymentDate(LocalDate paymentDate) {
+        Objects.requireNonNull(paymentDate, "A data de pagamento é obrigatória.");
+        return cycleAtOffset(paymentDate, 0);
+    }
+
     public static BillingCycle currentCycle(LocalDate registrationDate, LocalDate referenceDate) {
         Objects.requireNonNull(registrationDate, "A data de cadastro é obrigatória.");
         Objects.requireNonNull(referenceDate, "A data de referência é obrigatória.");

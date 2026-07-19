@@ -11,7 +11,6 @@ import com.adega.model.StatusPagamento;
 import com.adega.model.Usuario;
 import com.adega.repository.AdegaRepository;
 import com.adega.repository.AdegaMensalidadeRepository;
-import com.adega.repository.AdegaPagamentoRepository;
 import com.adega.repository.UsuarioRepository;
 import io.quarkus.elytron.security.common.BcryptUtil;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -25,9 +24,6 @@ public class AuthService {
 
     @Inject
     UsuarioRepository usuarioRepository;
-
-    @Inject
-    AdegaPagamentoRepository adegaPagamentoRepository;
 
     @Inject
     AdegaMensalidadeRepository adegaMensalidadeRepository;
@@ -60,7 +56,6 @@ public class AuthService {
         usuario.perfil = PerfilUsuario.GESTOR;
         usuarioRepository.persist(usuario);
 
-        adegaPagamentoRepository.createPending(adega);
         adegaMensalidadeRepository.createPendingRegistrationCycle(adega);
 
         return responseFor(usuario);

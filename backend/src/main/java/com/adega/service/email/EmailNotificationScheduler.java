@@ -102,7 +102,7 @@ public class EmailNotificationScheduler {
         for (Adega adega : adegaRepository.listAll()) {
             mensalidadeRepository.findRegistrationCycle(adega)
                     .filter(monthlyPayment -> monthlyPayment.status == StatusPagamento.PENDENTE)
-                    .ifPresent(monthlyPayment -> sendPendingRegistration(adega, monthlyPayment));
+                    .ifPresent(monthlyPayment -> sendPendingRegistration(adega));
         }
     }
 
@@ -112,6 +112,10 @@ public class EmailNotificationScheduler {
         for (AdegaMensalidade monthlyPayment : mensalidadeRepository.listAllOrdered()) {
             if (monthlyPayment.status == StatusPagamento.PAGO) {
                 sendPaymentConfirmation(monthlyPayment);
+                continue;
+            }
+
+            if (isPendingRegistration(monthlyPayment)) {
                 continue;
             }
 
@@ -161,7 +165,7 @@ public class EmailNotificationScheduler {
         }
     }
 
-    private void sendPendingRegistration(Adega adega, AdegaMensalidade monthlyPayment) {
+    private void sendPendingRegistration(Adega adega) {
         sendToManagers(
                 adega,
                 TipoNotificacaoEmail.CADASTRO_AGUARDANDO_PAGAMENTO,
@@ -170,8 +174,6 @@ public class EmailNotificationScheduler {
                 Map.of(
                         "adegaNome", adega.nome,
                         "statusPagamento", "Pendente",
-                        "periodoMensalidade", formatBillingPeriod(monthlyPayment),
-                        "dataVencimento", formatDate(monthlyPayment.dataVencimento),
                         "whatsappUrl", whatsappUrl(adega)
                 )
         );
@@ -297,6 +299,14 @@ public class EmailNotificationScheduler {
     private boolean wasCreatedBeforeToday(AdegaMensalidade monthlyPayment) {
         LocalDate creationDate = monthlyPayment.dataCadastro.atZone(BUSINESS_ZONE).toLocalDate();
         return creationDate.isBefore(LocalDate.now(BUSINESS_ZONE));
+    }
+
+    private boolean isPendingRegistration(AdegaMensalidade monthlyPayment) {
+        LocalDate registrationDate = monthlyPayment.adega.dataCadastro
+                .atZone(BUSINESS_ZONE)
+                .toLocalDate();
+        return monthlyPayment.status == StatusPagamento.PENDENTE
+                && monthlyPayment.competencia.equals(registrationDate);
     }
 
     private String whatsappUrl(Adega adega) {

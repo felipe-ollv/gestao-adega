@@ -6,8 +6,6 @@ Os templates usam placeholders no formato `{{nomeDaVariavel}}` e sao renderizado
 
 - `adegaNome`
 - `statusPagamento`
-- `periodoMensalidade`
-- `dataVencimento`
 - `whatsappUrl`
 - `destinatarioEmail`
 
@@ -58,6 +56,8 @@ Os templates usam placeholders no formato `{{nomeDaVariavel}}` e sao renderizado
 ## Envio automatico
 
 O `EmailNotificationScheduler` verifica os eventos a cada 60 segundos e envia somente para usuarios gestores ativos. Cada envio confirmado e registrado em `notificacao_email`, evitando duplicidade por evento e destinatario.
+
+O cadastro inicial recebe apenas o aviso de pagamento pendente. A validade mensal comeca na confirmacao do pagamento; a partir dela, o agendador envia confirmacao, aviso de vencimento e aviso de atraso conforme o periodo gravado em `adega_mensalidade`.
 
 O alerta de estoque e rearmado depois que o estoque fica acima do limite configurado. Se o produto voltar a atingir o limite em outro momento, um novo e-mail pode ser enviado.
 
