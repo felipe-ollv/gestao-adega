@@ -199,20 +199,13 @@ function Produtos() {
                         </MDBox>
                       </TableCell>
                       <TableCell>
-                        <MDBox display="flex" alignItems="center" gap={1} flexWrap="wrap">
-                          <MDTypography
-                            variant="button"
-                            fontWeight={isLowStock ? "bold" : "regular"}
-                            color={isLowStock ? "warning" : "text"}
-                          >
-                            {produto.quantidadeEstoqueUnidades}
-                          </MDTypography>
-                          {isLowStock && (
-                            <MDTypography variant="caption" color="warning" fontWeight="medium">
-                              alerta {produto.alertaEstoqueUnidades}
-                            </MDTypography>
-                          )}
-                        </MDBox>
+                        <MDTypography
+                          variant="button"
+                          fontWeight={isLowStock ? "bold" : "regular"}
+                          color={isLowStock ? "warning" : "text"}
+                        >
+                          {produto.quantidadeEstoqueUnidades}
+                        </MDTypography>
                       </TableCell>
                       <TableCell>{produto.alertaEstoqueUnidades}</TableCell>
                       <TableCell>{produto.unidadesPorCaixa}</TableCell>
