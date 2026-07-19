@@ -14,11 +14,21 @@ CREATE TABLE IF NOT EXISTS adega_mensalidade (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO adega_mensalidade (adega_uuid, competencia, status, data_vencimento)
-SELECT a.uuid, DATE_FORMAT(CURRENT_DATE, '%Y-%m-01'), 'PENDENTE', LAST_DAY(CURRENT_DATE)
+SELECT
+    a.uuid,
+    DATE(CONVERT_TZ(a.data_cadastro, @@session.time_zone, '-03:00')),
+    'PENDENTE',
+    DATE_SUB(
+        DATE_ADD(
+            DATE(CONVERT_TZ(a.data_cadastro, @@session.time_zone, '-03:00')),
+            INTERVAL 1 MONTH
+        ),
+        INTERVAL 1 DAY
+    )
 FROM adega a
 WHERE NOT EXISTS (
     SELECT 1
     FROM adega_mensalidade m
     WHERE m.adega_uuid = a.uuid
-      AND m.competencia = DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+      AND m.competencia = DATE(CONVERT_TZ(a.data_cadastro, @@session.time_zone, '-03:00'))
 );
