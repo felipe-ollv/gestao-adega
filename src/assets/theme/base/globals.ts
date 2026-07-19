@@ -20,6 +20,11 @@ const globals = {
   "a.link:hover, .link:hover, a.link:focus, .link:focus": {
     color: `${info.main} !important`,
   },
+  "@media (max-width: 600px), (hover: none) and (pointer: coarse)": {
+    "input, textarea, select": {
+      fontSize: "16px !important",
+    },
+  },
 };
 
 export default globals;
