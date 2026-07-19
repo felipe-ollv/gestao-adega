@@ -3,12 +3,12 @@ services:
     image: mysql:8.0
     container_name: adega_db
     environment:
-      MYSQL_DATABASE: adega_management
-      MYSQL_USER: adega_user
-      MYSQL_PASSWORD: adega_password
-      MYSQL_ROOT_PASSWORD: root_password_secura
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./scripts_sql:/docker-entrypoint-initdb.d:ro
@@ -17,7 +17,7 @@ services:
       - --innodb-buffer-pool-size=128M
       - --max-connections=40
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uadega_user", "-padega_password"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$$MYSQL_USER -p$$MYSQL_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 8
@@ -32,15 +32,28 @@ services:
       dockerfile: src/main/docker/Dockerfile.jvm
     container_name: adega_backend
     environment:
-      DB_URL: jdbc:mysql://db:3306/adega_management
-      DB_USER: adega_user
-      DB_PASSWORD: adega_password
-      CORS_ORIGINS: http://localhost
-      JWT_ISSUER: adega-api
-      JWT_PRIVATE_KEY_LOCATION: privateKey.pem
-      JWT_PUBLIC_KEY_LOCATION: publicKey.pem
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_PRIVATE_KEY_LOCATION: ${JWT_PRIVATE_KEY_LOCATION}
+      JWT_PUBLIC_KEY_LOCATION: ${JWT_PUBLIC_KEY_LOCATION}
+      JWT_DURATION_MINUTES: ${JWT_DURATION_MINUTES}
+      RESEND_API_URL: ${RESEND_API_URL}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL}
+      RESEND_REPLY_TO_EMAIL: ${RESEND_REPLY_TO_EMAIL}
+      APP_BASE_URL: ${APP_BASE_URL}
+      VITE_PAYMENT_WHATSAPP_NUMBER: ${VITE_PAYMENT_WHATSAPP_NUMBER}
+      EMAIL_MONTHLY_FEE_DISPLAY: ${EMAIL_MONTHLY_FEE_DISPLAY}
+      EMAIL_SCHEDULER_ENABLED: ${EMAIL_SCHEDULER_ENABLED}
+      EMAIL_NOTIFICATION_POLL_EVERY: ${EMAIL_NOTIFICATION_POLL_EVERY}
+      EMAIL_DUE_WARNING_DAYS: ${EMAIL_DUE_WARNING_DAYS}
+      API_LOGGING_ENABLED: ${API_LOGGING_ENABLED}
+      API_LOGGING_MAX_BODY_LENGTH: ${API_LOGGING_MAX_BODY_LENGTH}
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT}:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -54,11 +67,12 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_PAYMENT_WHATSAPP_NUMBER: ${VITE_PAYMENT_WHATSAPP_NUMBER:-}
-        VITE_PAYMENT_WHATSAPP_MESSAGE: ${VITE_PAYMENT_WHATSAPP_MESSAGE:-}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_PAYMENT_WHATSAPP_NUMBER: ${VITE_PAYMENT_WHATSAPP_NUMBER}
+        VITE_PAYMENT_WHATSAPP_MESSAGE: ${VITE_PAYMENT_WHATSAPP_MESSAGE}
     container_name: adega_frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT}:80"
     depends_on:
       - backend
     deploy:

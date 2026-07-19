@@ -16,4 +16,8 @@ public class ProdutoRepository implements PanacheRepositoryBase<Produto, Long> {
     public List<Produto> listByAdega(UUID adegaUuid) {
         return list("adega.uuid = ?1 and ativo = true order by nome", adegaUuid);
     }
+
+    public List<Produto> listActive() {
+        return list("ativo = true order by adega.id, nome");
+    }
 }

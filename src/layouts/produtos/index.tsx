@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import Alert from "@mui/material/Alert";
 import Card from "@mui/material/Card";
+import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -33,6 +34,7 @@ const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "
 const emptyForm = {
   nome: "",
   quantidadeEstoqueUnidades: 0,
+  alertaEstoqueUnidades: 12,
   unidadesPorCaixa: 1,
   valorUnidade: 0,
   valorCaixa: "",
@@ -74,6 +76,7 @@ function Produtos() {
     setForm({
       nome: produto.nome,
       quantidadeEstoqueUnidades: produto.quantidadeEstoqueUnidades,
+      alertaEstoqueUnidades: produto.alertaEstoqueUnidades,
       unidadesPorCaixa: produto.unidadesPorCaixa,
       valorUnidade: produto.valorUnidade,
       valorCaixa: produto.valorCaixa ?? "",
@@ -89,6 +92,7 @@ function Produtos() {
     const payload = {
       nome: form.nome,
       quantidadeEstoqueUnidades: Number(form.quantidadeEstoqueUnidades),
+      alertaEstoqueUnidades: Number(form.alertaEstoqueUnidades),
       unidadesPorCaixa: Number(form.unidadesPorCaixa),
       valorUnidade: Number(form.valorUnidade),
       valorCaixa: form.valorCaixa === "" ? null : Number(form.valorCaixa),
@@ -155,6 +159,7 @@ function Produtos() {
                 <TableRow>
                   <TableCell>Produto</TableCell>
                   <TableCell>Estoque</TableCell>
+                  <TableCell>Alerta estoque</TableCell>
                   <TableCell>Un./caixa</TableCell>
                   <TableCell>Valor unidade</TableCell>
                   <TableCell>Valor caixa</TableCell>
@@ -162,46 +167,91 @@ function Produtos() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {produtos.map((produto) => (
-                  <TableRow key={produto.uuid}>
-                    <TableCell>{produto.nome}</TableCell>
-                    <TableCell>{produto.quantidadeEstoqueUnidades}</TableCell>
-                    <TableCell>{produto.unidadesPorCaixa}</TableCell>
-                    <TableCell>{currency.format(Number(produto.valorUnidade))}</TableCell>
-                    <TableCell>
-                      {produto.valorCaixa ? currency.format(Number(produto.valorCaixa)) : "-"}
-                    </TableCell>
-                    {isGestor && (
-                      <TableCell align="right">
-                        <Tooltip title="Editar">
-                          <IconButton
-                            color="info"
-                            disabled={actionLoading}
-                            onClick={() => openEdit(produto)}
-                          >
-                            <Icon>edit</Icon>
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Excluir">
-                          <IconButton
-                            color="error"
-                            disabled={actionLoading}
-                            onClick={() => handleDelete(produto)}
-                          >
-                            {deletingUuid === produto.uuid ? (
-                              <CircularProgress color="inherit" size={20} />
-                            ) : (
-                              <Icon>delete</Icon>
-                            )}
-                          </IconButton>
-                        </Tooltip>
+                {produtos.map((produto) => {
+                  const isLowStock =
+                    produto.quantidadeEstoqueUnidades <= produto.alertaEstoqueUnidades;
+
+                  return (
+                    <TableRow
+                      key={produto.uuid}
+                      sx={
+                        isLowStock
+                          ? {
+                              bgcolor: "#fff7ed",
+                              "&:hover": {
+                                bgcolor: "#ffedd5",
+                              },
+                            }
+                          : undefined
+                      }
+                    >
+                      <TableCell>
+                        <MDBox display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                          {produto.nome}
+                          {isLowStock && (
+                            <Chip
+                              label="Estoque baixo"
+                              size="small"
+                              color="warning"
+                              sx={{ fontWeight: 700 }}
+                            />
+                          )}
+                        </MDBox>
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        <MDBox display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                          <MDTypography
+                            variant="button"
+                            fontWeight={isLowStock ? "bold" : "regular"}
+                            color={isLowStock ? "warning" : "text"}
+                          >
+                            {produto.quantidadeEstoqueUnidades}
+                          </MDTypography>
+                          {isLowStock && (
+                            <MDTypography variant="caption" color="warning" fontWeight="medium">
+                              alerta {produto.alertaEstoqueUnidades}
+                            </MDTypography>
+                          )}
+                        </MDBox>
+                      </TableCell>
+                      <TableCell>{produto.alertaEstoqueUnidades}</TableCell>
+                      <TableCell>{produto.unidadesPorCaixa}</TableCell>
+                      <TableCell>{currency.format(Number(produto.valorUnidade))}</TableCell>
+                      <TableCell>
+                        {produto.valorCaixa ? currency.format(Number(produto.valorCaixa)) : "-"}
+                      </TableCell>
+                      {isGestor && (
+                        <TableCell align="right">
+                          <Tooltip title="Editar">
+                            <IconButton
+                              color="info"
+                              disabled={actionLoading}
+                              onClick={() => openEdit(produto)}
+                            >
+                              <Icon>edit</Icon>
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Excluir">
+                            <IconButton
+                              color="error"
+                              disabled={actionLoading}
+                              onClick={() => handleDelete(produto)}
+                            >
+                              {deletingUuid === produto.uuid ? (
+                                <CircularProgress color="inherit" size={20} />
+                              ) : (
+                                <Icon>delete</Icon>
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
                 {produtos.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={isGestor ? 6 : 5}>Nenhum produto cadastrado.</TableCell>
+                    <TableCell colSpan={isGestor ? 7 : 6}>Nenhum produto cadastrado.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -234,6 +284,20 @@ function Produtos() {
                   value={form.quantidadeEstoqueUnidades}
                   onChange={(event) =>
                     setForm({ ...form, quantidadeEstoqueUnidades: event.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Alerta estoque"
+                  type="number"
+                  required
+                  fullWidth
+                  helperText="Alerta quando o estoque for igual ou menor que este valor."
+                  inputProps={{ min: 0 }}
+                  value={form.alertaEstoqueUnidades}
+                  onChange={(event) =>
+                    setForm({ ...form, alertaEstoqueUnidades: event.target.value })
                   }
                 />
               </Grid>

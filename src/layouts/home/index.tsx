@@ -229,7 +229,9 @@ function Home() {
     );
     const fiadoTotal = fiado.reduce((acc, comanda) => acc + Number(comanda.total || 0), 0);
     const faturamento = pagasNoPeriodo.reduce((acc, comanda) => acc + Number(comanda.total || 0), 0);
-    const baixoEstoque = produtos.filter((produto) => produto.quantidadeEstoqueUnidades <= 12);
+    const baixoEstoque = produtos.filter(
+      (produto) => produto.quantidadeEstoqueUnidades <= produto.alertaEstoqueUnidades
+    );
 
     return { abertas, fiado, fiadoTotal, faturamento, baixoEstoque };
   }, [billingPeriod, billingValue, comandas, produtos]);
@@ -336,12 +338,12 @@ function Home() {
             </Grid>
           )}
           <Grid item xs={12} md={isGestor ? 3 : 4}>
-            <StatCard
-              label="Baixo estoque"
-              value={metrics.baixoEstoque.length}
-              helper="Produtos com até 12 un."
-              tone="stock"
-            />
+              <StatCard
+                label="Baixo estoque"
+                value={metrics.baixoEstoque.length}
+                helper="Conforme alerta de cada produto"
+                tone="stock"
+              />
           </Grid>
 
           <Grid item xs={12} lg={7}>
@@ -398,6 +400,7 @@ function Home() {
                     <TableRow>
                       <TableCell>Produto</TableCell>
                       <TableCell>Unidades</TableCell>
+                      <TableCell>Alerta</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -405,11 +408,12 @@ function Home() {
                       <TableRow key={produto.uuid}>
                         <TableCell>{produto.nome}</TableCell>
                         <TableCell>{produto.quantidadeEstoqueUnidades}</TableCell>
+                        <TableCell>{produto.alertaEstoqueUnidades}</TableCell>
                       </TableRow>
                     ))}
                     {!loading && metrics.baixoEstoque.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={2}>Estoque sem alertas.</TableCell>
+                        <TableCell colSpan={3}>Estoque sem alertas.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>

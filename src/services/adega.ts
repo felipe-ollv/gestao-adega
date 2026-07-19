@@ -22,6 +22,7 @@ export type Produto = {
   uuid: string;
   nome: string;
   quantidadeEstoqueUnidades: number;
+  alertaEstoqueUnidades: number;
   unidadesPorCaixa: number;
   valorUnidade: number;
   valorCaixa?: number | null;

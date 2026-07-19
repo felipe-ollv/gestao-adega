@@ -72,14 +72,32 @@ CREATE TABLE IF NOT EXISTS produto (
     adega_uuid BINARY(16) NOT NULL,
     nome VARCHAR(100) NOT NULL,
     quantidade_estoque_unidades INT NOT NULL,
+    alerta_estoque_unidades INT NOT NULL DEFAULT 12,
+    alerta_estoque_notificado BOOLEAN NOT NULL DEFAULT FALSE,
+    alerta_estoque_ciclo INT NOT NULL DEFAULT 0,
     unidades_por_caixa INT NOT NULL DEFAULT 1,
     valor_unidade DECIMAL(10,2) NOT NULL,
     valor_caixa DECIMAL(10,2) NULL,
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT fk_produto_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
     CONSTRAINT chk_produto_estoque CHECK (quantidade_estoque_unidades >= 0),
+    CONSTRAINT chk_produto_alerta_estoque CHECK (alerta_estoque_unidades >= 0),
+    CONSTRAINT chk_produto_alerta_ciclo CHECK (alerta_estoque_ciclo >= 0),
     CONSTRAINT chk_produto_unidades_caixa CHECK (unidades_por_caixa >= 1),
     INDEX idx_produto_adega_nome (adega_uuid, nome)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS notificacao_email (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    uuid BINARY(16) NOT NULL UNIQUE,
+    adega_uuid BINARY(16) NOT NULL,
+    tipo VARCHAR(50) NOT NULL,
+    chave_referencia VARCHAR(255) NOT NULL UNIQUE,
+    destinatario VARCHAR(120) NOT NULL,
+    provider_id VARCHAR(100) NULL,
+    data_envio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_notificacao_email_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
+    INDEX idx_notificacao_email_adega_tipo (adega_uuid, tipo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS comanda (

@@ -3,5 +3,8 @@ dist
 build
 .git
 .DS_Store
+.env
+.env.*
+!.env.example
 npm-debug.log*
 backend/target

@@ -17,16 +17,8 @@ import routes, { AppRoute } from "routes";
 import { useMaterialUIController, setMiniSidenav } from "context";
 
 import { useUser } from "context/user.context";
+import { paymentWhatsappUrl } from "config/payment";
 import { isJwtTokenValid } from "services/auth";
-
-const paymentWhatsappNumber = import.meta.env.VITE_PAYMENT_WHATSAPP_NUMBER || "";
-const paymentWhatsappDigits = paymentWhatsappNumber.replace(/\D/g, "");
-const paymentWhatsappMessage =
-  import.meta.env.VITE_PAYMENT_WHATSAPP_MESSAGE ||
-  "Olá, minha mensalidade está pendente na Gestão Comércio e gostaria de regularizar o acesso.";
-const paymentWhatsappUrl = paymentWhatsappDigits
-  ? `https://wa.me/${paymentWhatsappDigits}?text=${encodeURIComponent(paymentWhatsappMessage)}`
-  : "";
 
 function ProtectedRoute({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { token, expireSession, userData } = useUser();
@@ -174,8 +166,7 @@ export default function App() {
           ) : undefined
         }
       >
-        Mensalidade pendente. Para liberar o acesso ao painel, entre em contato pelo WhatsApp
-        {paymentWhatsappNumber ? `: ${paymentWhatsappNumber}` : "."}
+        Mensalidade pendente. Para liberar o acesso ao painel, clique para falar no WhatsApp.
       </Alert>
     </Snackbar>
   );

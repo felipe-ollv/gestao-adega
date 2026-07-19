@@ -1,0 +1,9 @@
+package com.adega.model;
+
+public enum TipoNotificacaoEmail {
+    CADASTRO_AGUARDANDO_PAGAMENTO,
+    PAGAMENTO_CONFIRMADO,
+    AVISO_VENCIMENTO_MENSALIDADE,
+    MENSALIDADE_VENCIDA,
+    PRODUTO_ESTOQUE_BAIXO
+}

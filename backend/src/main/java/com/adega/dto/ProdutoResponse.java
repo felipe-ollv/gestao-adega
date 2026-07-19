@@ -8,6 +8,7 @@ public record ProdutoResponse(
         UUID uuid,
         String nome,
         int quantidadeEstoqueUnidades,
+        int alertaEstoqueUnidades,
         int unidadesPorCaixa,
         BigDecimal valorUnidade,
         BigDecimal valorCaixa
@@ -17,6 +18,7 @@ public record ProdutoResponse(
                 produto.uuid,
                 produto.nome,
                 produto.quantidadeEstoqueUnidades,
+                produto.alertaEstoqueUnidades,
                 produto.unidadesPorCaixa,
                 produto.valorUnidade,
                 produto.valorCaixa

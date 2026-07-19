@@ -9,6 +9,7 @@ import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Optional;
+import java.util.List;
 
 @ApplicationScoped
 public class AdegaMensalidadeRepository implements PanacheRepositoryBase<AdegaMensalidade, Long> {
@@ -48,5 +49,9 @@ public class AdegaMensalidadeRepository implements PanacheRepositoryBase<AdegaMe
                     persist(mensalidade);
                     return mensalidade;
                 });
+    }
+
+    public List<AdegaMensalidade> listAllOrdered() {
+        return list("order by competencia, adega.id");
     }
 }

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mensalidade vencida</title>
+  </head>
+  <body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+            <tr>
+              <td style="background:#b91c1c;padding:24px 28px;">
+                <p style="margin:0;color:#fee2e2;font-size:13px;">Gestao Comercio</p>
+                <h1 style="margin:6px 0 0;color:#ffffff;font-size:24px;line-height:1.25;">Mensalidade vencida</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">A mensalidade do comercio <strong>{{adegaNome}}</strong> esta vencida.</p>
+                <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#374151;">Regularize a pendencia para manter ou liberar o acesso ao painel.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin:0 0 24px;">
+                  <tr>
+                    <td style="padding:16px 18px;font-size:14px;color:#7f1d1d;">
+                      <strong>Status:</strong> {{statusPagamento}}<br />
+                      <strong>Competencia:</strong> {{competenciaMensalidade}}<br />
+                      <strong>Vencimento:</strong> {{dataVencimento}}<br />
+                      <strong>Dias em atraso:</strong> {{diasEmAtraso}}
+                    </td>
+                  </tr>
+                </table>
+                <a href="{{whatsappUrl}}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 18px;border-radius:6px;">Falar no WhatsApp</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px;background:#f9fafb;color:#6b7280;font-size:12px;">
+                © {{anoAtual}} Gestao Comercio. Mensagem enviada para {{destinatarioEmail}}.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

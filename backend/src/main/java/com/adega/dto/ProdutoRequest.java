@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 public record ProdutoRequest(
         @NotBlank String nome,
         @PositiveOrZero int quantidadeEstoqueUnidades,
+        @PositiveOrZero int alertaEstoqueUnidades,
         @Min(1) int unidadesPorCaixa,
         @NotNull @DecimalMin("0.01") BigDecimal valorUnidade,
         @Positive BigDecimal valorCaixa

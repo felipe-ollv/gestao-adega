@@ -69,6 +69,7 @@ public class ProdutoService {
         }
         produto.nome = request.nome().trim();
         produto.quantidadeEstoqueUnidades = request.quantidadeEstoqueUnidades();
+        produto.alertaEstoqueUnidades = request.alertaEstoqueUnidades();
         produto.unidadesPorCaixa = request.unidadesPorCaixa();
         produto.valorUnidade = request.valorUnidade();
         produto.valorCaixa = request.valorCaixa();

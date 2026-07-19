@@ -5,6 +5,9 @@ import Alert from "@mui/material/Alert";
 import Card from "@mui/material/Card";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
+import Icon from "@mui/material/Icon";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
 import TextField from "@mui/material/TextField";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
@@ -12,18 +15,10 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import MDBox from "components/MDBox";
 import MDButton from "components/MDButton";
 import MDTypography from "components/MDTypography";
+import { paymentWhatsappUrl } from "config/payment";
 import { setLayout, useMaterialUIController } from "context";
 import { useUser } from "context/user.context";
 import { authApi, getApiErrorMessage } from "services/adega";
-
-const paymentWhatsappNumber = import.meta.env.VITE_PAYMENT_WHATSAPP_NUMBER || "";
-const paymentWhatsappDigits = paymentWhatsappNumber.replace(/\D/g, "");
-const paymentWhatsappMessage =
-  import.meta.env.VITE_PAYMENT_WHATSAPP_MESSAGE ||
-  "Olá, minha mensalidade está pendente na Gestão Comércio e gostaria de regularizar o acesso.";
-const paymentWhatsappUrl = paymentWhatsappDigits
-  ? `https://wa.me/${paymentWhatsappDigits}?text=${encodeURIComponent(paymentWhatsappMessage)}`
-  : "";
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "").slice(0, 14);
 
@@ -52,6 +47,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [paymentPending, setPaymentPending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     nomeAdega: "",
     cnpjCpf: "",
@@ -205,11 +201,25 @@ function Login() {
                 />
                 <TextField
                   label="Senha"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   fullWidth
                   required
                   margin="normal"
                   inputProps={{ minLength: mode === "register" ? 8 : undefined }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                          edge="end"
+                          onClick={() => setShowPassword((current) => !current)}
+                          onMouseDown={(event) => event.preventDefault()}
+                        >
+                          <Icon fontSize="small">{showPassword ? "visibility_off" : "visibility"}</Icon>
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                   value={form.senha}
                   onChange={(event) => updateField("senha", event.target.value)}
                 />
@@ -222,8 +232,8 @@ function Login() {
 
                 {paymentPending && (
                   <Alert severity="warning" sx={{ mt: 2 }}>
-                    Mensalidade pendente. Para liberar o acesso ao painel, entre em contato pelo WhatsApp
-                    {paymentWhatsappNumber ? `: ${paymentWhatsappNumber}` : "."}
+                    Mensalidade pendente. Para liberar o acesso ao painel, clique para falar no
+                    WhatsApp.
                     {paymentWhatsappUrl && (
                       <MDBox mt={1.5}>
                         <MDButton
@@ -231,11 +241,22 @@ function Login() {
                           href={paymentWhatsappUrl}
                           target="_blank"
                           rel="noreferrer"
-                          variant="outlined"
-                          color="warning"
+                          variant="contained"
+                          color="success"
                           size="small"
+                          fullWidth
+                          sx={{
+                            bgcolor: "#16a34a",
+                            color: "#ffffff !important",
+                            borderColor: "#16a34a",
+                            boxShadow: "0 6px 14px rgba(22, 163, 74, 0.24)",
+                            "&:hover": {
+                              bgcolor: "#15803d",
+                              borderColor: "#15803d",
+                            },
+                          }}
                         >
-                          Chamar no WhatsApp
+                          WhatsApp
                         </MDButton>
                       </MDBox>
                     )}
