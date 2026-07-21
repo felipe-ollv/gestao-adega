@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 
 import Alert from "@mui/material/Alert";
 import Card from "@mui/material/Card";
@@ -16,6 +16,7 @@ import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
+import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
@@ -49,8 +50,14 @@ function Produtos() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingUuid, setDeletingUuid] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const actionLoading = saving || Boolean(deletingUuid);
+  const visibleProdutos = useMemo(
+    () => produtos.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [page, produtos, rowsPerPage]
+  );
 
   const loadProdutos = async () => {
     setError("");
@@ -64,6 +71,12 @@ function Produtos() {
   useEffect(() => {
     loadProdutos();
   }, []);
+
+  useEffect(() => {
+    if (page > 0 && page * rowsPerPage >= produtos.length) {
+      setPage(Math.max(0, Math.ceil(produtos.length / rowsPerPage) - 1));
+    }
+  }, [page, produtos.length, rowsPerPage]);
 
   const openCreate = () => {
     setEditing(null);
@@ -126,6 +139,11 @@ function Produtos() {
     }
   };
 
+  const handleChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setRowsPerPage(Number(event.target.value));
+    setPage(0);
+  };
+
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -167,7 +185,7 @@ function Produtos() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {produtos.map((produto) => {
+                {visibleProdutos.map((produto) => {
                   const isLowStock =
                     produto.quantidadeEstoqueUnidades <= produto.alertaEstoqueUnidades;
 
@@ -250,6 +268,17 @@ function Produtos() {
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            component="div"
+            count={produtos.length}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            labelRowsPerPage="Itens por página"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+            onPageChange={(_, nextPage) => setPage(nextPage)}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
         </Card>
       </MDBox>
 
