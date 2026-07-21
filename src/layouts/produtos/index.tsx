@@ -11,6 +11,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Grid from "@mui/material/Grid";
 import Icon from "@mui/material/Icon";
 import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -32,6 +33,12 @@ import { Produto, getApiErrorMessage, produtosApi } from "services/adega";
 
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+const normalizeText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+
 const emptyForm = {
   nome: "",
   quantidadeEstoqueUnidades: 0,
@@ -50,13 +57,24 @@ function Produtos() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingUuid, setDeletingUuid] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const actionLoading = saving || Boolean(deletingUuid);
+  const filteredProdutos = useMemo(() => {
+    const normalizedSearch = normalizeText(searchTerm.trim());
+
+    if (!normalizedSearch) {
+      return produtos;
+    }
+
+    return produtos.filter((produto) => normalizeText(produto.nome).includes(normalizedSearch));
+  }, [produtos, searchTerm]);
+
   const visibleProdutos = useMemo(
-    () => produtos.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [page, produtos, rowsPerPage]
+    () => filteredProdutos.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [filteredProdutos, page, rowsPerPage]
   );
 
   const loadProdutos = async () => {
@@ -73,10 +91,10 @@ function Produtos() {
   }, []);
 
   useEffect(() => {
-    if (page > 0 && page * rowsPerPage >= produtos.length) {
-      setPage(Math.max(0, Math.ceil(produtos.length / rowsPerPage) - 1));
+    if (page > 0 && page * rowsPerPage >= filteredProdutos.length) {
+      setPage(Math.max(0, Math.ceil(filteredProdutos.length / rowsPerPage) - 1));
     }
-  }, [page, produtos.length, rowsPerPage]);
+  }, [filteredProdutos.length, page, rowsPerPage]);
 
   const openCreate = () => {
     setEditing(null);
@@ -144,11 +162,23 @@ function Produtos() {
     setPage(0);
   };
 
+  const handleSearchChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setSearchTerm(event.target.value);
+    setPage(0);
+  };
+
   return (
     <DashboardLayout>
       <DashboardNavbar />
       <MDBox py={3}>
-        <MDBox mb={3} display="flex" justifyContent="space-between" alignItems="center" gap={2}>
+        <MDBox
+          mb={3}
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          gap={2}
+          flexWrap="wrap"
+        >
           <MDBox>
             <MDTypography variant="h4" fontWeight="medium">
               Produtos
@@ -157,11 +187,32 @@ function Produtos() {
               Estoque controlado por unidades, com venda opcional por caixa.
             </MDTypography>
           </MDBox>
-          {isGestor && (
-            <MDButton variant="gradient" color="info" disabled={actionLoading} onClick={openCreate}>
-              Novo produto
-            </MDButton>
-          )}
+          <MDBox display="flex" alignItems="center" gap={2} flexWrap="wrap" justifyContent="flex-end">
+            {isGestor && (
+                <MDButton
+                    variant="gradient"
+                    color="info"
+                    disabled={actionLoading}
+                    onClick={openCreate}
+                >
+                  Novo produto
+                </MDButton>
+            )}
+            <TextField
+              label="Filtrar por nome"
+              size="medium"
+              value={searchTerm}
+              onChange={handleSearchChange}
+              sx={{ width: { xs: "100%", sm: 260 } }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Icon fontSize="small">search</Icon>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </MDBox>
         </MDBox>
 
         {error && (
@@ -260,9 +311,13 @@ function Produtos() {
                     </TableRow>
                   );
                 })}
-                {produtos.length === 0 && (
+                {visibleProdutos.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={isGestor ? 7 : 6}>Nenhum produto cadastrado.</TableCell>
+                    <TableCell colSpan={isGestor ? 7 : 6}>
+                      {produtos.length === 0
+                        ? "Nenhum produto cadastrado."
+                        : "Nenhum produto encontrado para o filtro informado."}
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -270,7 +325,7 @@ function Produtos() {
           </TableContainer>
           <TablePagination
             component="div"
-            count={produtos.length}
+            count={filteredProdutos.length}
             page={page}
             rowsPerPage={rowsPerPage}
             rowsPerPageOptions={[5, 10, 25, 50]}
