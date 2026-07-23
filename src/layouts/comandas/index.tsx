@@ -35,7 +35,15 @@ import {
 } from "services/adega";
 
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-type LoadingAction = "open" | "add" | "update" | "close-paga" | "close-fiado" | `delete-${string}`;
+type LoadingAction =
+  | "open"
+  | "add"
+  | "update"
+  | "partial-payment"
+  | "close-paga"
+  | "close-fiado"
+  | "delete-comanda"
+  | `delete-${string}`;
 
 function Comandas() {
   const { isGestor } = useUser();
@@ -51,7 +59,11 @@ function Comandas() {
   const [editProdutoUuid, setEditProdutoUuid] = useState("");
   const [editQuantidade, setEditQuantidade] = useState(1);
   const [editTipoMedida, setEditTipoMedida] = useState<TipoMedidaVenda>("UNIDADE");
+  const [partialPaymentDialog, setPartialPaymentDialog] = useState(false);
+  const [partialPaymentValue, setPartialPaymentValue] = useState("");
   const [closingDialog, setClosingDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [deleteObservation, setDeleteObservation] = useState("");
   const [error, setError] = useState("");
   const [loadingAction, setLoadingAction] = useState<LoadingAction | null>(null);
 
@@ -199,6 +211,27 @@ function Comandas() {
     }
   };
 
+  const handlePartialPayment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedComanda) return;
+
+    const valor = Number(partialPaymentValue);
+    if (!valor || valor <= 0) return;
+
+    setLoadingAction("partial-payment");
+    setError("");
+    try {
+      const updated = await comandasApi.payPartial(selectedComanda.uuid, valor);
+      updateComandaState(updated);
+      setPartialPaymentDialog(false);
+      setPartialPaymentValue("");
+    } catch (paymentError) {
+      setError(getApiErrorMessage(paymentError));
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const handleCloseComanda = async (status: "PAGA" | "FIADO") => {
     if (!selectedComanda) return;
 
@@ -219,9 +252,37 @@ function Comandas() {
     }
   };
 
+  const handleDeleteComanda = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedComanda || !deleteObservation.trim()) return;
+
+    setLoadingAction("delete-comanda");
+    setError("");
+    try {
+      await comandasApi.delete(selectedComanda.uuid, deleteObservation);
+      const nextAbertas = comandasAbertas.filter((comanda) => comanda.uuid !== selectedComanda.uuid);
+      const nextFiado = comandasFiado.filter((comanda) => comanda.uuid !== selectedComanda.uuid);
+      setComandasAbertas(nextAbertas);
+      setComandasFiado(nextFiado);
+      setSelectedUuid(nextAbertas[0]?.uuid || nextFiado[0]?.uuid || "");
+      setDeleteDialog(false);
+      setDeleteObservation("");
+      setProdutos(await produtosApi.list());
+    } catch (deleteError) {
+      setError(getApiErrorMessage(deleteError));
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const medidaDisponivel = tipoMedida === "UNIDADE" || Boolean(selectedProduto?.valorCaixa);
   const editMedidaDisponivel = editTipoMedida === "UNIDADE" || Boolean(selectedEditProduto?.valorCaixa);
   const selectedIsFiado = selectedComanda?.status === "FIADO";
+  const selectedPaidValue = Number(selectedComanda?.valorPagoParcial || 0);
+  const selectedBalanceValue = Number(
+    selectedComanda?.saldoPendente ?? Number(selectedComanda?.total || 0) - selectedPaidValue
+  );
+  const partialPaymentNumber = Number(partialPaymentValue);
   const totalPreview =
     selectedProduto && medidaDisponivel
       ? Number(quantidade) *
@@ -299,7 +360,17 @@ function Comandas() {
                           },
                         }}
                       >
-                        {comanda.nomeResponsavel} - {currency.format(Number(comanda.total || 0))}
+                        <MDBox>
+                          <MDTypography variant="button" fontWeight="medium" display="block">
+                            {comanda.nomeResponsavel} - {currency.format(Number(comanda.total || 0))}
+                          </MDTypography>
+                          {/*{Number(comanda.valorPagoParcial || 0) > 0 && (*/}
+                          {/*  <MDTypography variant="caption" display="block">*/}
+                          {/*    Pago {currency.format(Number(comanda.valorPagoParcial || 0))} | Restante{" "}*/}
+                          {/*    {currency.format(Number(comanda.saldoPendente || 0))}*/}
+                          {/*  </MDTypography>*/}
+                          {/*)}*/}
+                        </MDBox>
                       </MDButton>
                     ))}
                     {comandasAbertas.length === 0 && (
@@ -345,7 +416,17 @@ function Comandas() {
                           },
                         }}
                       >
-                        {comanda.nomeResponsavel} - {currency.format(Number(comanda.total || 0))}
+                        <MDBox>
+                          <MDTypography variant="button" fontWeight="medium" display="block">
+                            {comanda.nomeResponsavel} - {currency.format(Number(comanda.total || 0))}
+                          </MDTypography>
+                          {Number(comanda.valorPagoParcial || 0) > 0 && (
+                            <MDTypography variant="caption" display="block">
+                              Pago {currency.format(Number(comanda.valorPagoParcial || 0))} | Restante{" "}
+                              {currency.format(Number(comanda.saldoPendente || 0))}
+                            </MDTypography>
+                          )}
+                        </MDBox>
                       </MDButton>
                     ))}
                     {comandasFiado.length === 0 && (
@@ -376,14 +457,40 @@ function Comandas() {
                     )}
                   </MDBox>
                   {selectedComanda && (
-                    <MDButton
-                      variant="gradient"
-                      color="success"
-                      disabled={actionLoading}
-                      onClick={() => setClosingDialog(true)}
-                    >
-                      {selectedIsFiado ? "Marcar como paga" : "Fechar"}
-                    </MDButton>
+                    <MDBox display="flex" gap={1} flexWrap="wrap" justifyContent="flex-end">
+                      {!selectedIsFiado && (
+                        <MDButton
+                          variant="outlined"
+                          color="success"
+                          disabled={actionLoading || selectedBalanceValue <= 0}
+                          onClick={() => {
+                            setPartialPaymentValue("");
+                            setPartialPaymentDialog(true);
+                          }}
+                        >
+                          Baixa parcial
+                        </MDButton>
+                      )}
+                      <MDButton
+                        variant="gradient"
+                        color="success"
+                        disabled={actionLoading}
+                        onClick={() => setClosingDialog(true)}
+                      >
+                        {selectedIsFiado ? "Marcar como paga" : "Fechar"}
+                      </MDButton>
+                      {/*<MDButton*/}
+                      {/*  variant="outlined"*/}
+                      {/*  color="error"*/}
+                      {/*  disabled={actionLoading}*/}
+                      {/*  onClick={() => {*/}
+                      {/*    setDeleteObservation("");*/}
+                      {/*    setDeleteDialog(true);*/}
+                      {/*  }}*/}
+                      {/*>*/}
+                      {/*  Excluir*/}
+                      {/*</MDButton>*/}
+                    </MDBox>
                   )}
                 </MDBox>
 
@@ -532,10 +639,41 @@ function Comandas() {
                       )}
                     </MDBox>
 
-                    <MDBox mt={3} display="flex" justifyContent="flex-end">
-                      <MDTypography variant="h5" fontWeight="bold">
-                        Total {currency.format(Number(selectedComanda.total || 0))}
-                      </MDTypography>
+                    <MDBox
+                      mt={3}
+                      p={2}
+                      borderRadius="lg"
+                      sx={{
+                        border: selectedPaidValue > 0 ? "1px solid #22c55e" : "1px solid #e5e7eb",
+                        bgcolor: selectedPaidValue > 0 ? "#ecfdf5" : "#f8fafc",
+                      }}
+                    >
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={4}>
+                          <MDTypography variant="caption" color="text" display="block">
+                            Total
+                          </MDTypography>
+                          <MDTypography variant="h6" fontWeight="bold">
+                            {currency.format(Number(selectedComanda.total || 0))}
+                          </MDTypography>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <MDTypography variant="caption" color="text" display="block">
+                            Pago parcial
+                          </MDTypography>
+                          <MDTypography variant="h6" fontWeight="bold" sx={{ color: "#16a34a" }}>
+                            {currency.format(selectedPaidValue)}
+                          </MDTypography>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <MDTypography variant="caption" color="text" display="block">
+                            Restante
+                          </MDTypography>
+                          <MDTypography variant="h6" fontWeight="bold">
+                            {currency.format(selectedBalanceValue)}
+                          </MDTypography>
+                        </Grid>
+                      </Grid>
                     </MDBox>
                   </>
                 )}
@@ -546,6 +684,122 @@ function Comandas() {
       </MDBox>
 
       <Dialog
+        open={partialPaymentDialog}
+        onClose={() => !actionLoading && setPartialPaymentDialog(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <MDBox component="form" onSubmit={handlePartialPayment}>
+          <DialogTitle>Baixa parcial</DialogTitle>
+          <DialogContent>
+            <MDBox mb={2}>
+              <MDTypography variant="button" color="text" display="block">
+                Total: {currency.format(Number(selectedComanda?.total || 0))}
+              </MDTypography>
+              <MDTypography variant="button" color="text" display="block">
+                Já pago: {currency.format(selectedPaidValue)}
+              </MDTypography>
+              <MDTypography variant="button" fontWeight="bold" display="block">
+                Restante: {currency.format(selectedBalanceValue)}
+              </MDTypography>
+            </MDBox>
+            <TextField
+              label="Valor pago"
+              type="number"
+              required
+              fullWidth
+              inputProps={{ min: 0.01, max: selectedBalanceValue, step: 0.01 }}
+              value={partialPaymentValue}
+              onChange={(event) => setPartialPaymentValue(event.target.value)}
+              error={partialPaymentNumber > selectedBalanceValue}
+              helperText={
+                partialPaymentNumber > selectedBalanceValue
+                  ? "O valor não pode ultrapassar o saldo restante."
+                  : ""
+              }
+            />
+          </DialogContent>
+          <DialogActions>
+            <MDButton
+              variant="text"
+              color="secondary"
+              disabled={actionLoading}
+              onClick={() => setPartialPaymentDialog(false)}
+            >
+              Cancelar
+            </MDButton>
+            <MDButton
+              type="submit"
+              variant="gradient"
+              color="success"
+              disabled={
+                !partialPaymentNumber ||
+                partialPaymentNumber <= 0 ||
+                partialPaymentNumber > selectedBalanceValue ||
+                (actionLoading && loadingAction !== "partial-payment")
+              }
+              loading={loadingAction === "partial-payment"}
+              loadingText="Salvando..."
+            >
+              Confirmar
+            </MDButton>
+          </DialogActions>
+        </MDBox>
+      </Dialog>
+
+      <Dialog open={deleteDialog} onClose={() => !actionLoading && setDeleteDialog(false)} maxWidth="sm" fullWidth>
+        <MDBox component="form" onSubmit={handleDeleteComanda}>
+          <DialogTitle>Excluir comanda</DialogTitle>
+          <DialogContent>
+            <MDBox mb={2}>
+              <MDTypography variant="button" color="text" display="block">
+                {selectedComanda?.nomeResponsavel}
+              </MDTypography>
+              <MDTypography variant="button" color="text" display="block">
+                Total: {currency.format(Number(selectedComanda?.total || 0))}
+              </MDTypography>
+              {selectedPaidValue > 0 && (
+                <MDTypography variant="button" display="block" sx={{ color: "#16a34a" }}>
+                  Pago parcial: {currency.format(selectedPaidValue)}
+                </MDTypography>
+              )}
+            </MDBox>
+            <TextField
+              label="Motivo da exclusão"
+              required
+              fullWidth
+              multiline
+              minRows={3}
+              inputProps={{ maxLength: 500 }}
+              value={deleteObservation}
+              onChange={(event) => setDeleteObservation(event.target.value)}
+              helperText={`${deleteObservation.length}/500`}
+            />
+          </DialogContent>
+          <DialogActions>
+            <MDButton
+              variant="text"
+              color="secondary"
+              disabled={actionLoading}
+              onClick={() => setDeleteDialog(false)}
+            >
+              Cancelar
+            </MDButton>
+            <MDButton
+              type="submit"
+              variant="gradient"
+              color="error"
+              disabled={!deleteObservation.trim() || (actionLoading && loadingAction !== "delete-comanda")}
+              loading={loadingAction === "delete-comanda"}
+              loadingText="Excluindo..."
+            >
+              Excluir
+            </MDButton>
+          </DialogActions>
+        </MDBox>
+      </Dialog>
+
+      <Dialog
         open={closingDialog}
         onClose={() => !actionLoading && setClosingDialog(false)}
         maxWidth="xs"
@@ -553,8 +807,14 @@ function Comandas() {
       >
         <DialogTitle>{selectedIsFiado ? "Receber fiado" : "Fechar comanda"}</DialogTitle>
         <DialogContent>
-          <MDTypography variant="button" color="text">
+          <MDTypography variant="button" color="text" display="block">
             Total: {currency.format(Number(selectedComanda?.total || 0))}
+          </MDTypography>
+          <MDTypography variant="button" color="text" display="block">
+            Pago parcial: {currency.format(selectedPaidValue)}
+          </MDTypography>
+          <MDTypography variant="button" fontWeight="bold" display="block">
+            Restante: {currency.format(selectedBalanceValue)}
           </MDTypography>
         </DialogContent>
         <DialogActions>

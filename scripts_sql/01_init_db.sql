@@ -117,9 +117,12 @@ CREATE TABLE IF NOT EXISTS comanda (
     nome_responsavel VARCHAR(100) NOT NULL,
     data_abertura TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_fechamento TIMESTAMP NULL,
+    data_exclusao TIMESTAMP NULL,
     status VARCHAR(20) NOT NULL,
+    valor_pago_parcial DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    observacao_exclusao VARCHAR(500) NULL,
     CONSTRAINT fk_comanda_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
-    CONSTRAINT chk_comanda_status CHECK (status IN ('ABERTA', 'PAGA', 'FIADO')),
+    CONSTRAINT chk_comanda_status CHECK (status IN ('ABERTA', 'PAGA', 'FIADO', 'EXCLUIDA')),
     INDEX idx_comanda_adega_status (adega_uuid, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

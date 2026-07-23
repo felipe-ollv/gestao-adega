@@ -3,7 +3,7 @@ import typography from "assets/theme/base/typography";
 
 import pxToRem from "assets/theme/functions/pxToRem";
 
-const { white, text, info, secondary } = colors;
+const { white, text, info, secondary, success, error } = colors;
 const { size } = typography;
 
 const contained = {
@@ -67,6 +67,32 @@ const contained = {
 
     "&:focus:not(:hover)": {
       backgroundColor: secondary.focus,
+    },
+  },
+
+  success: {
+    backgroundColor: success.main,
+    color: white.main,
+
+    "&:hover": {
+      backgroundColor: success.main,
+    },
+
+    "&:focus:not(:hover)": {
+      backgroundColor: success.focus,
+    },
+  },
+
+  error: {
+    backgroundColor: error.main,
+    color: white.main,
+
+    "&:hover": {
+      backgroundColor: error.main,
+    },
+
+    "&:focus:not(:hover)": {
+      backgroundColor: error.focus,
     },
   },
 };

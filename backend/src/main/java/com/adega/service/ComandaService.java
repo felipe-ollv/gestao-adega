@@ -4,7 +4,9 @@ import com.adega.dto.AdicionarItemRequest;
 import com.adega.dto.AtualizarItemRequest;
 import com.adega.dto.ComandaRequest;
 import com.adega.dto.ComandaResponse;
+import com.adega.dto.ExcluirComandaRequest;
 import com.adega.dto.FecharComandaRequest;
+import com.adega.dto.PagamentoParcialComandaRequest;
 import com.adega.exception.BusinessException;
 import com.adega.exception.ForbiddenOperationException;
 import com.adega.model.Adega;
@@ -100,13 +102,17 @@ public class ComandaService {
         ensureOpen(comanda, "Itens só podem ser editados em comandas abertas.");
 
         ComandaItem item = findCurrentAdegaComandaItem(comandaUuid, itemUuid);
-        item.produto.quantidadeEstoqueUnidades += item.unidadesDeduzidas;
-
         Produto produto = produtoRepository.findByUuidAndAdega(request.produtoUuid(), securityService.currentAdegaUuid())
                 .filter(candidate -> candidate.ativo)
                 .orElseThrow(() -> new BusinessException("Produto não encontrado."));
 
         ItemPricing pricing = pricingFor(produto, request.quantidade(), request.tipoMedida());
+        BigDecimal totalAtualizado = total(comanda)
+                .subtract(subtotal(item))
+                .add(pricing.valorAplicado().multiply(BigDecimal.valueOf(request.quantidade())));
+        ensureTotalCoversPaid(comanda, totalAtualizado);
+
+        item.produto.quantidadeEstoqueUnidades += item.unidadesDeduzidas;
         deductStock(produto, pricing.unidadesParaDeduzir());
 
         item.produto = produto;
@@ -124,6 +130,8 @@ public class ComandaService {
         ensureOpen(comanda, "Itens só podem ser excluídos em comandas abertas.");
 
         ComandaItem item = findCurrentAdegaComandaItem(comandaUuid, itemUuid);
+        ensureTotalCoversPaid(comanda, total(comanda).subtract(subtotal(item)));
+
         item.produto.quantidadeEstoqueUnidades += item.unidadesDeduzidas;
         comanda.itens.remove(item);
         comandaItemRepository.delete(item);
@@ -135,6 +143,9 @@ public class ComandaService {
     public ComandaResponse close(UUID uuid, FecharComandaRequest request) {
         if (request.status() == StatusComanda.ABERTA) {
             throw new BusinessException("Use PAGA ou FIADO para fechar a comanda.");
+        }
+        if (request.status() == StatusComanda.EXCLUIDA) {
+            throw new BusinessException("Use a ação de exclusão para excluir a comanda.");
         }
         if (request.status() == StatusComanda.FIADO && !securityService.isGestor()) {
             throw new ForbiddenOperationException("Apenas gestores podem fechar comandas como fiado.");
@@ -152,7 +163,57 @@ public class ComandaService {
 
         comanda.status = request.status();
         comanda.dataFechamento = Instant.now();
+        if (request.status() == StatusComanda.PAGA) {
+            comanda.valorPagoParcial = total(comanda);
+        }
         return ComandaResponse.from(comanda);
+    }
+
+    @Transactional
+    public ComandaResponse payPartial(UUID uuid, PagamentoParcialComandaRequest request) {
+        if (request == null || request.valor() == null || request.valor().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("O valor do pagamento parcial deve ser maior que zero.");
+        }
+
+        Comanda comanda = findCurrentAdegaComanda(uuid);
+        ensureOpen(comanda, "Pagamentos parciais só podem ser lançados em comandas abertas.");
+
+        BigDecimal total = total(comanda);
+        if (total.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Adicione itens antes de lançar pagamento parcial.");
+        }
+
+        BigDecimal valorPagoAtual = paidValue(comanda);
+        BigDecimal novoValorPago = valorPagoAtual.add(request.valor());
+        if (novoValorPago.compareTo(total) > 0) {
+            throw new BusinessException("O pagamento parcial não pode ultrapassar o total da comanda.");
+        }
+
+        comanda.valorPagoParcial = novoValorPago;
+        return ComandaResponse.from(comanda);
+    }
+
+    @Transactional
+    public void delete(UUID uuid, ExcluirComandaRequest request) {
+        if (request == null || request.observacao() == null || request.observacao().trim().isBlank()) {
+            throw new BusinessException("Informe o motivo da exclusão da comanda.");
+        }
+
+        Comanda comanda = findCurrentAdegaComanda(uuid);
+        if (comanda.status == StatusComanda.EXCLUIDA) {
+            throw new BusinessException("Comanda já excluída.");
+        }
+        if (comanda.status == StatusComanda.PAGA) {
+            throw new BusinessException("Comandas pagas não podem ser excluídas.");
+        }
+
+        for (ComandaItem item : comanda.itens) {
+            item.produto.quantidadeEstoqueUnidades += item.unidadesDeduzidas;
+        }
+
+        comanda.status = StatusComanda.EXCLUIDA;
+        comanda.dataExclusao = Instant.now();
+        comanda.observacaoExclusao = request.observacao().trim();
     }
 
     private Comanda findCurrentAdegaComanda(UUID uuid) {
@@ -170,6 +231,26 @@ public class ComandaService {
         if (comanda.status != StatusComanda.ABERTA) {
             throw new BusinessException(message);
         }
+    }
+
+    private void ensureTotalCoversPaid(Comanda comanda, BigDecimal total) {
+        if (total.compareTo(paidValue(comanda)) < 0) {
+            throw new BusinessException("O total da comanda não pode ficar menor que o valor já pago.");
+        }
+    }
+
+    private BigDecimal total(Comanda comanda) {
+        return comanda.itens.stream()
+                .map(this::subtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal subtotal(ComandaItem item) {
+        return item.valorCobradoUnitario.multiply(BigDecimal.valueOf(item.quantidadePedida));
+    }
+
+    private BigDecimal paidValue(Comanda comanda) {
+        return comanda.valorPagoParcial == null ? BigDecimal.ZERO : comanda.valorPagoParcial;
     }
 
     private ItemPricing pricingFor(Produto produto, int quantidade, TipoMedidaVenda tipoMedida) {

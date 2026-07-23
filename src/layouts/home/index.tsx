@@ -227,7 +227,10 @@ function Home() {
       (comanda) =>
         comanda.status === "PAGA" && isWithinBillingRange(comanda.dataFechamento, billingRange)
     );
-    const fiadoTotal = fiado.reduce((acc, comanda) => acc + Number(comanda.total || 0), 0);
+    const fiadoTotal = fiado.reduce(
+      (acc, comanda) => acc + Number(comanda.saldoPendente ?? comanda.total ?? 0),
+      0
+    );
     const faturamento = pagasNoPeriodo.reduce((acc, comanda) => acc + Number(comanda.total || 0), 0);
     const baixoEstoque = produtos.filter(
       (produto) => produto.quantidadeEstoqueUnidades <= produto.alertaEstoqueUnidades

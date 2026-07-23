@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,9 +47,18 @@ public class Comanda extends PanacheEntityBase {
     @Column(name = "data_fechamento")
     public Instant dataFechamento;
 
+    @Column(name = "data_exclusao")
+    public Instant dataExclusao;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     public StatusComanda status = StatusComanda.ABERTA;
+
+    @Column(name = "valor_pago_parcial", nullable = false, precision = 10, scale = 2)
+    public BigDecimal valorPagoParcial = BigDecimal.ZERO;
+
+    @Column(name = "observacao_exclusao", length = 500)
+    public String observacaoExclusao;
 
     @OneToMany(mappedBy = "comanda", cascade = CascadeType.ALL, orphanRemoval = true)
     public List<ComandaItem> itens = new ArrayList<>();
@@ -60,6 +70,9 @@ public class Comanda extends PanacheEntityBase {
         }
         if (dataAbertura == null) {
             dataAbertura = Instant.now();
+        }
+        if (valorPagoParcial == null) {
+            valorPagoParcial = BigDecimal.ZERO;
         }
     }
 }

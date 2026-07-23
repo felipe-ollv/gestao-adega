@@ -3,7 +3,7 @@ import typography from "assets/theme/base/typography";
 
 import pxToRem from "assets/theme/functions/pxToRem";
 
-const { transparent, light, info, secondary } = colors;
+const { transparent, light, info, secondary, success, error } = colors;
 const { size } = typography;
 
 const outlined = {
@@ -57,6 +57,30 @@ const outlined = {
     borderColor: secondary.main,
 
     "&:hover": {
+      backgroundColor: transparent.main,
+    },
+  },
+
+  success: {
+    color: success.main,
+    backgroundColor: transparent.main,
+    borderColor: success.main,
+
+    "&:hover": {
+      color: success.focus,
+      borderColor: success.focus,
+      backgroundColor: transparent.main,
+    },
+  },
+
+  error: {
+    color: error.main,
+    backgroundColor: transparent.main,
+    borderColor: error.main,
+
+    "&:hover": {
+      color: error.focus,
+      borderColor: error.focus,
       backgroundColor: transparent.main,
     },
   },

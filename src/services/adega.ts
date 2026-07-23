@@ -2,7 +2,7 @@ import api from "services/api";
 
 export type PerfilUsuario = "GESTOR" | "ATENDENTE";
 export type StatusPagamento = "PENDENTE" | "PAGO";
-export type StatusComanda = "ABERTA" | "PAGA" | "FIADO";
+export type StatusComanda = "ABERTA" | "PAGA" | "FIADO" | "EXCLUIDA";
 export type TipoMedidaVenda = "UNIDADE" | "CAIXA";
 
 export type AuthResponse = {
@@ -44,9 +44,13 @@ export type Comanda = {
   nomeResponsavel: string;
   dataAbertura: string;
   dataFechamento?: string | null;
+  dataExclusao?: string | null;
   status: StatusComanda;
   itens: ComandaItem[];
   total: number;
+  valorPagoParcial: number;
+  saldoPendente: number;
+  observacaoExclusao?: string | null;
 };
 
 export type Usuario = {
@@ -98,8 +102,14 @@ export const comandasApi = {
     api.put<Comanda>(`/comandas/${comandaUuid}/itens/${itemUuid}`, payload).then((response) => response.data),
   deleteItem: (comandaUuid: string, itemUuid: string) =>
     api.delete<Comanda>(`/comandas/${comandaUuid}/itens/${itemUuid}`).then((response) => response.data),
-  close: (comandaUuid: string, status: Exclude<StatusComanda, "ABERTA">) =>
+  close: (comandaUuid: string, status: Exclude<StatusComanda, "ABERTA" | "EXCLUIDA">) =>
     api.patch<Comanda>(`/comandas/${comandaUuid}/fechar`, { status }).then((response) => response.data),
+  payPartial: (comandaUuid: string, valor: number) =>
+    api
+      .patch<Comanda>(`/comandas/${comandaUuid}/pagamento-parcial`, { valor })
+      .then((response) => response.data),
+  delete: (comandaUuid: string, observacao: string) =>
+    api.delete(`/comandas/${comandaUuid}`, { data: { observacao } }),
 };
 
 export const usuariosApi = {

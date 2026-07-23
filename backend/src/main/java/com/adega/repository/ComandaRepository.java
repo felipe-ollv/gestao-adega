@@ -16,7 +16,7 @@ public class ComandaRepository implements PanacheRepositoryBase<Comanda, Long> {
 
     public List<Comanda> listByAdega(UUID adegaUuid, StatusComanda status) {
         if (status == null) {
-            return list("adega.uuid = ?1 order by dataAbertura desc", adegaUuid);
+            return list("adega.uuid = ?1 and status <> ?2 order by dataAbertura desc", adegaUuid, StatusComanda.EXCLUIDA);
         }
         return list("adega.uuid = ?1 and status = ?2 order by dataAbertura desc", adegaUuid, status);
     }
