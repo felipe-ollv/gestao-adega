@@ -417,7 +417,7 @@ function Comandas() {
                         }}
                       >
                         <MDBox>
-                          <MDTypography variant="button" fontWeight="medium" display="block">
+                          <MDTypography variant="caption" fontWeight="medium" display="block">
                             {comanda.nomeResponsavel} - {currency.format(Number(comanda.total || 0))}
                           </MDTypography>
                           {Number(comanda.valorPagoParcial || 0) > 0 && (
