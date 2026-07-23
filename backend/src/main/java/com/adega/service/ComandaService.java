@@ -1,6 +1,7 @@
 package com.adega.service;
 
 import com.adega.dto.AdicionarItemRequest;
+import com.adega.dto.AdicionarItensRequest;
 import com.adega.dto.AtualizarItemRequest;
 import com.adega.dto.ComandaRequest;
 import com.adega.dto.ComandaResponse;
@@ -25,7 +26,9 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class ComandaService {
@@ -72,26 +75,39 @@ public class ComandaService {
     @Transactional
     public ComandaResponse addItem(UUID comandaUuid, AdicionarItemRequest request) {
         Comanda comanda = findCurrentAdegaComanda(comandaUuid);
-        if (comanda.status != StatusComanda.ABERTA) {
-            throw new BusinessException("Itens só podem ser adicionados em comandas abertas.");
+        ensureOpen(comanda, "Itens só podem ser adicionados em comandas abertas.");
+        PreparedItem preparedItem = prepareItem(request);
+        ensureStockAvailable(preparedItem.produto(), preparedItem.pricing().unidadesParaDeduzir());
+        persistItem(comanda, preparedItem, null, null);
+
+        return ComandaResponse.from(comanda);
+    }
+
+    @Transactional
+    public ComandaResponse addItems(UUID comandaUuid, AdicionarItensRequest request) {
+        Comanda comanda = findCurrentAdegaComanda(comandaUuid);
+        ensureOpen(comanda, "Itens só podem ser adicionados em comandas abertas.");
+
+        Set<UUID> produtosUnicos = request.itens().stream()
+                .map(AdicionarItemRequest::produtoUuid)
+                .collect(Collectors.toSet());
+        if (produtosUnicos.size() != request.itens().size()) {
+            throw new BusinessException("O mesmo produto não pode aparecer mais de uma vez no combo.");
         }
 
-        Produto produto = produtoRepository.findByUuidAndAdega(request.produtoUuid(), securityService.currentAdegaUuid())
-                .filter(candidate -> candidate.ativo)
-                .orElseThrow(() -> new BusinessException("Produto não encontrado."));
+        List<PreparedItem> preparedItems = request.itens().stream()
+                .map(this::prepareItem)
+                .toList();
+        preparedItems.forEach(preparedItem ->
+                ensureStockAvailable(
+                        preparedItem.produto(),
+                        preparedItem.pricing().unidadesParaDeduzir()
+                ));
 
-        ItemPricing pricing = pricingFor(produto, request.quantidade(), request.tipoMedida());
-        deductStock(produto, pricing.unidadesParaDeduzir());
-
-        ComandaItem item = new ComandaItem();
-        item.comanda = comanda;
-        item.produto = produto;
-        item.quantidadePedida = request.quantidade();
-        item.unidadesDeduzidas = pricing.unidadesParaDeduzir();
-        item.tipoMedidaVendida = request.tipoMedida();
-        item.valorCobradoUnitario = pricing.valorAplicado();
-        comandaItemRepository.persist(item);
-        comanda.itens.add(item);
+        UUID grupoUuid = request.itens().size() > 1 ? UUID.randomUUID() : null;
+        for (int index = 0; index < preparedItems.size(); index++) {
+            persistItem(comanda, preparedItems.get(index), grupoUuid, grupoUuid == null ? null : index);
+        }
 
         return ComandaResponse.from(comanda);
     }
@@ -105,6 +121,12 @@ public class ComandaService {
         Produto produto = produtoRepository.findByUuidAndAdega(request.produtoUuid(), securityService.currentAdegaUuid())
                 .filter(candidate -> candidate.ativo)
                 .orElseThrow(() -> new BusinessException("Produto não encontrado."));
+        if (item.grupoUuid != null && comanda.itens.stream().anyMatch(candidate ->
+                !candidate.uuid.equals(item.uuid)
+                        && item.grupoUuid.equals(candidate.grupoUuid)
+                        && candidate.produto.uuid.equals(request.produtoUuid()))) {
+            throw new BusinessException("O mesmo produto não pode aparecer mais de uma vez no combo.");
+        }
 
         ItemPricing pricing = pricingFor(produto, request.quantidade(), request.tipoMedida());
         BigDecimal totalAtualizado = total(comanda)
@@ -233,6 +255,38 @@ public class ComandaService {
         }
     }
 
+    private PreparedItem prepareItem(AdicionarItemRequest request) {
+        Produto produto = produtoRepository.findByUuidAndAdega(request.produtoUuid(), securityService.currentAdegaUuid())
+                .filter(candidate -> candidate.ativo)
+                .orElseThrow(() -> new BusinessException("Produto não encontrado."));
+        ItemPricing pricing = pricingFor(produto, request.quantidade(), request.tipoMedida());
+        return new PreparedItem(request, produto, pricing);
+    }
+
+    private void persistItem(
+            Comanda comanda,
+            PreparedItem preparedItem,
+            UUID grupoUuid,
+            Integer ordemGrupo
+    ) {
+        AdicionarItemRequest request = preparedItem.request();
+        Produto produto = preparedItem.produto();
+        ItemPricing pricing = preparedItem.pricing();
+        deductStock(produto, pricing.unidadesParaDeduzir());
+
+        ComandaItem item = new ComandaItem();
+        item.comanda = comanda;
+        item.produto = produto;
+        item.quantidadePedida = request.quantidade();
+        item.unidadesDeduzidas = pricing.unidadesParaDeduzir();
+        item.tipoMedidaVendida = request.tipoMedida();
+        item.valorCobradoUnitario = pricing.valorAplicado();
+        item.grupoUuid = grupoUuid;
+        item.ordemGrupo = ordemGrupo;
+        comandaItemRepository.persist(item);
+        comanda.itens.add(item);
+    }
+
     private void ensureTotalCoversPaid(Comanda comanda, BigDecimal total) {
         if (total.compareTo(paidValue(comanda)) < 0) {
             throw new BusinessException("O total da comanda não pode ficar menor que o valor já pago.");
@@ -269,11 +323,17 @@ public class ComandaService {
     }
 
     private void deductStock(Produto produto, int unidadesParaDeduzir) {
+        ensureStockAvailable(produto, unidadesParaDeduzir);
+        produto.quantidadeEstoqueUnidades -= unidadesParaDeduzir;
+    }
+
+    private void ensureStockAvailable(Produto produto, int unidadesParaDeduzir) {
         if (produto.quantidadeEstoqueUnidades < unidadesParaDeduzir) {
             throw new BusinessException("Estoque insuficiente para o produto: " + produto.nome);
         }
+    }
 
-        produto.quantidadeEstoqueUnidades -= unidadesParaDeduzir;
+    private record PreparedItem(AdicionarItemRequest request, Produto produto, ItemPricing pricing) {
     }
 
     private record ItemPricing(int unidadesParaDeduzir, BigDecimal valorAplicado) {

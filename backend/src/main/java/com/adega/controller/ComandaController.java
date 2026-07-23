@@ -1,6 +1,7 @@
 package com.adega.controller;
 
 import com.adega.dto.AdicionarItemRequest;
+import com.adega.dto.AdicionarItensRequest;
 import com.adega.dto.AtualizarItemRequest;
 import com.adega.dto.ComandaRequest;
 import com.adega.dto.ComandaResponse;
@@ -55,6 +56,12 @@ public class ComandaController {
     @Path("/{uuid}/itens")
     public ComandaResponse addItem(@PathParam("uuid") UUID uuid, @Valid AdicionarItemRequest request) {
         return comandaService.addItem(uuid, request);
+    }
+
+    @POST
+    @Path("/{uuid}/itens/lote")
+    public ComandaResponse addItems(@PathParam("uuid") UUID uuid, @Valid AdicionarItensRequest request) {
+        return comandaService.addItems(uuid, request);
     }
 
     @PUT

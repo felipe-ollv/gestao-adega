@@ -13,7 +13,9 @@ public record ComandaItemResponse(
         int unidadesDeduzidas,
         TipoMedidaVenda tipoMedida,
         BigDecimal valorUnitario,
-        BigDecimal subtotal
+        BigDecimal subtotal,
+        UUID grupoUuid,
+        Integer ordemGrupo
 ) {
     public static ComandaItemResponse from(ComandaItem item) {
         BigDecimal subtotal = item.valorCobradoUnitario.multiply(BigDecimal.valueOf(item.quantidadePedida));
@@ -25,7 +27,9 @@ public record ComandaItemResponse(
                 item.unidadesDeduzidas,
                 item.tipoMedidaVendida,
                 item.valorCobradoUnitario,
-                subtotal
+                subtotal,
+                item.grupoUuid,
+                item.ordemGrupo
         );
     }
 }

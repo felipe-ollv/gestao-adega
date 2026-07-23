@@ -5,10 +5,12 @@ import Autocomplete from "@mui/material/Autocomplete";
 import Card from "@mui/material/Card";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
+import Collapse from "@mui/material/Collapse";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import Icon from "@mui/material/Icon";
 import IconButton from "@mui/material/IconButton";
@@ -35,6 +37,16 @@ import {
 } from "services/adega";
 
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+type ItemDraft = {
+  produto: Produto;
+  quantidade: number;
+  tipoMedida: TipoMedidaVenda;
+};
+type ComandaEntry = {
+  key: string;
+  items: ComandaItem[];
+  grouped: boolean;
+};
 type LoadingAction =
   | "open"
   | "add"
@@ -52,9 +64,8 @@ function Comandas() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [selectedUuid, setSelectedUuid] = useState("");
   const [novoResponsavel, setNovoResponsavel] = useState("");
-  const [produtoUuid, setProdutoUuid] = useState("");
-  const [quantidade, setQuantidade] = useState(1);
-  const [tipoMedida, setTipoMedida] = useState<TipoMedidaVenda>("UNIDADE");
+  const [itemDrafts, setItemDrafts] = useState<ItemDraft[]>([]);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [editingItem, setEditingItem] = useState<ComandaItem | null>(null);
   const [editProdutoUuid, setEditProdutoUuid] = useState("");
   const [editQuantidade, setEditQuantidade] = useState(1);
@@ -77,9 +88,54 @@ function Comandas() {
     [allComandas, selectedUuid]
   );
 
-  const selectedProduto = produtos.find((produto) => produto.uuid === produtoUuid);
   const selectedEditProduto = produtos.find((produto) => produto.uuid === editProdutoUuid);
+  const selectedDraftProducts = itemDrafts.map((draft) => draft.produto);
   const actionLoading = Boolean(loadingAction);
+
+  const comandaEntries = useMemo<ComandaEntry[]>(() => {
+    if (!selectedComanda) return [];
+
+    const entries: ComandaEntry[] = [];
+    const groupedEntries = new Map<string, ComandaEntry>();
+
+    selectedComanda.itens.forEach((item) => {
+      if (!item.grupoUuid) {
+        entries.push({ key: item.uuid, items: [item], grouped: false });
+        return;
+      }
+
+      const existing = groupedEntries.get(item.grupoUuid);
+      if (existing) {
+        existing.items.push(item);
+        return;
+      }
+
+      const entry = { key: item.grupoUuid, items: [item], grouped: true };
+      groupedEntries.set(item.grupoUuid, entry);
+      entries.push(entry);
+    });
+
+    return entries.map((entry) => {
+      const items = [...entry.items].sort(
+        (first, second) => Number(first.ordemGrupo ?? 0) - Number(second.ordemGrupo ?? 0)
+      );
+      return { ...entry, items, grouped: entry.grouped && items.length > 1 };
+    });
+  }, [selectedComanda]);
+
+  const editProdutoOptions = useMemo(() => {
+    if (!editingItem?.grupoUuid || !selectedComanda) return produtos;
+
+    const produtosDoMesmoGrupo = new Set(
+      selectedComanda.itens
+        .filter(
+          (item) =>
+            item.grupoUuid === editingItem.grupoUuid && item.uuid !== editingItem.uuid
+        )
+        .map((item) => item.produtoUuid)
+    );
+    return produtos.filter((produto) => !produtosDoMesmoGrupo.has(produto.uuid));
+  }, [editingItem, produtos, selectedComanda]);
 
   const updateComandaState = (updated: Comanda) => {
     setComandasAbertas((current) =>
@@ -137,26 +193,59 @@ function Comandas() {
 
   const handleAddItem = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedComanda || !produtoUuid) return;
+    if (!selectedComanda || itemDrafts.length === 0) return;
 
     setLoadingAction("add");
     setError("");
     try {
-      const updated = await comandasApi.addItem(selectedComanda.uuid, {
-        produtoUuid,
-        quantidade: Number(quantidade),
-        tipoMedida,
-      });
+      const updated = await comandasApi.addItems(
+        selectedComanda.uuid,
+        itemDrafts.map((draft) => ({
+          produtoUuid: draft.produto.uuid,
+          quantidade: Number(draft.quantidade),
+          tipoMedida: draft.tipoMedida,
+        }))
+      );
       updateComandaState(updated);
-      setProdutoUuid("");
-      setQuantidade(1);
-      setTipoMedida("UNIDADE");
+      setItemDrafts([]);
       setProdutos(await produtosApi.list());
     } catch (addError) {
       setError(getApiErrorMessage(addError));
     } finally {
       setLoadingAction(null);
     }
+  };
+
+  const handleSelectedProducts = (selectedProducts: Produto[]) => {
+    setItemDrafts((current) =>
+      selectedProducts.map(
+        (produto) =>
+          current.find((draft) => draft.produto.uuid === produto.uuid) || {
+            produto,
+            quantidade: 1,
+            tipoMedida: "UNIDADE",
+          }
+      )
+    );
+  };
+
+  const updateItemDraft = (
+    produtoUuid: string,
+    changes: Partial<Pick<ItemDraft, "quantidade" | "tipoMedida">>
+  ) => {
+    setItemDrafts((current) =>
+      current.map((draft) =>
+        draft.produto.uuid === produtoUuid ? { ...draft, ...changes } : draft
+      )
+    );
+  };
+
+  const toggleGroup = (grupoUuid: string) => {
+    setExpandedGroups((current) =>
+      current.includes(grupoUuid)
+        ? current.filter((uuid) => uuid !== grupoUuid)
+        : [...current, grupoUuid]
+    );
   };
 
   const openEditItem = (item: ComandaItem) => {
@@ -275,7 +364,11 @@ function Comandas() {
     }
   };
 
-  const medidaDisponivel = tipoMedida === "UNIDADE" || Boolean(selectedProduto?.valorCaixa);
+  const draftsValidos = itemDrafts.every(
+    (draft) =>
+      draft.quantidade > 0 &&
+      (draft.tipoMedida === "UNIDADE" || Boolean(draft.produto.valorCaixa))
+  );
   const editMedidaDisponivel = editTipoMedida === "UNIDADE" || Boolean(selectedEditProduto?.valorCaixa);
   const selectedIsFiado = selectedComanda?.status === "FIADO";
   const selectedPaidValue = Number(selectedComanda?.valorPagoParcial || 0);
@@ -283,11 +376,11 @@ function Comandas() {
     selectedComanda?.saldoPendente ?? Number(selectedComanda?.total || 0) - selectedPaidValue
   );
   const partialPaymentNumber = Number(partialPaymentValue);
-  const totalPreview =
-    selectedProduto && medidaDisponivel
-      ? Number(quantidade) *
-        Number(tipoMedida === "CAIXA" ? selectedProduto.valorCaixa : selectedProduto.valorUnidade)
-      : 0;
+  const totalPreview = itemDrafts.reduce((total, draft) => {
+    const valor =
+      draft.tipoMedida === "CAIXA" ? draft.produto.valorCaixa : draft.produto.valorUnidade;
+    return total + Number(draft.quantidade) * Number(valor || 0);
+  }, 0);
   const editTotalPreview =
     selectedEditProduto && editMedidaDisponivel
       ? Number(editQuantidade) *
@@ -505,55 +598,131 @@ function Comandas() {
                     {!selectedIsFiado && (
                       <MDBox component="form" onSubmit={handleAddItem} mb={3}>
                         <Grid container spacing={2} alignItems="center">
-                          <Grid item xs={12} md={5}>
+                          <Grid item xs={12}>
                             <Autocomplete
+                              multiple
                               openOnFocus
+                              disableCloseOnSelect
                               options={produtos}
-                              value={selectedProduto || null}
+                              value={selectedDraftProducts}
                               getOptionLabel={(produto) =>
                                 `${produto.nome} (${produto.quantidadeEstoqueUnidades} un.)`
                               }
                               isOptionEqualToValue={(option, value) => option.uuid === value.uuid}
                               noOptionsText="Nenhum produto encontrado"
-                              onChange={(_, produto) => setProdutoUuid(produto?.uuid || "")}
+                              onChange={(_, selectedProducts) =>
+                                handleSelectedProducts(selectedProducts)
+                              }
+                              renderTags={(selectedProducts, getTagProps) =>
+                                selectedProducts.map((produto, index) => {
+                                  const { key, ...chipProps } = getTagProps({ index });
+                                  return (
+                                    <MDBox
+                                      key={key}
+                                      component="span"
+                                      display="inline-flex"
+                                      alignItems="center"
+                                    >
+                                      <Chip {...chipProps} label={produto.nome} size="small" />
+                                      {index < selectedProducts.length - 1 && (
+                                        <MDTypography
+                                          component="span"
+                                          variant="button"
+                                          fontWeight="bold"
+                                          mx={0.5}
+                                        >
+                                          +
+                                        </MDTypography>
+                                      )}
+                                    </MDBox>
+                                  );
+                                })
+                              }
                               renderInput={(params) => (
-                                <TextField {...params} label="Produto" required fullWidth />
+                                <TextField
+                                  {...params}
+                                  label="Produtos"
+                                  placeholder={
+                                    itemDrafts.length === 0 ? "Selecione um ou mais produtos" : ""
+                                  }
+                                  fullWidth
+                                />
                               )}
                             />
                           </Grid>
-                          <Grid item xs={6} md={2}>
-                            <TextField
-                              label="Qtd."
-                              type="number"
-                              required
-                              fullWidth
-                              inputProps={{ min: 1 }}
-                              value={quantidade}
-                              onChange={(event) => setQuantidade(Number(event.target.value))}
-                            />
-                          </Grid>
-                          <Grid item xs={12} md={5}>
-                            <ToggleButtonGroup
-                              color="info"
-                              exclusive
-                              fullWidth
-                              value={tipoMedida}
-                              onChange={(_, value) => value && setTipoMedida(value)}
-                            >
-                              <ToggleButton value="UNIDADE">
-                                Unidade{" "}
-                                {selectedProduto ? currency.format(Number(selectedProduto.valorUnidade)) : ""}
-                              </ToggleButton>
-                              <ToggleButton value="CAIXA" disabled={!selectedProduto?.valorCaixa}>
-                                Caixa{" "}
-                                {selectedProduto?.valorCaixa
-                                  ? currency.format(Number(selectedProduto.valorCaixa))
-                                  : ""}
-                              </ToggleButton>
-                            </ToggleButtonGroup>
-                          </Grid>
+
+                          {itemDrafts.map((draft) => (
+                            <Grid item xs={12} key={draft.produto.uuid}>
+                              <MDBox
+                                p={1.5}
+                                borderRadius="lg"
+                                sx={{ border: "1px solid #e5e7eb", bgcolor: "#f8fafc" }}
+                              >
+                                <Grid container spacing={1.5} alignItems="center">
+                                  <Grid item xs={12} md={4}>
+                                    <MDTypography variant="button" fontWeight="medium">
+                                      {draft.produto.nome}
+                                    </MDTypography>
+                                    <MDTypography variant="caption" color="text" display="block">
+                                      {draft.produto.quantidadeEstoqueUnidades} un. em estoque
+                                    </MDTypography>
+                                  </Grid>
+                                  <Grid item xs={12} sm={4} md={2}>
+                                    <TextField
+                                      label="Qtd."
+                                      type="number"
+                                      required
+                                      fullWidth
+                                      inputProps={{ min: 1 }}
+                                      value={draft.quantidade}
+                                      onChange={(event) =>
+                                        updateItemDraft(draft.produto.uuid, {
+                                          quantidade: Number(event.target.value),
+                                        })
+                                      }
+                                    />
+                                  </Grid>
+                                  <Grid item xs={12} sm={8} md={6}>
+                                    <ToggleButtonGroup
+                                      color="info"
+                                      exclusive
+                                      fullWidth
+                                      value={draft.tipoMedida}
+                                      onChange={(_, value) =>
+                                        value &&
+                                        updateItemDraft(draft.produto.uuid, {
+                                          tipoMedida: value,
+                                        })
+                                      }
+                                    >
+                                      <ToggleButton value="UNIDADE">
+                                        Unidade{" "}
+                                        {currency.format(Number(draft.produto.valorUnidade))}
+                                      </ToggleButton>
+                                      <ToggleButton
+                                        value="CAIXA"
+                                        disabled={!draft.produto.valorCaixa}
+                                      >
+                                        Caixa{" "}
+                                        {draft.produto.valorCaixa
+                                          ? currency.format(Number(draft.produto.valorCaixa))
+                                          : ""}
+                                      </ToggleButton>
+                                    </ToggleButtonGroup>
+                                  </Grid>
+                                </Grid>
+                              </MDBox>
+                            </Grid>
+                          ))}
+
                           <Grid item xs={12}>
-                            <MDBox display="flex" justifyContent="space-between" alignItems="center" gap={2}>
+                            <MDBox
+                              display="flex"
+                              justifyContent="space-between"
+                              alignItems="center"
+                              gap={2}
+                              flexWrap="wrap"
+                            >
                               <MDTypography variant="button" color="text">
                                 Prévia: {currency.format(totalPreview)}
                               </MDTypography>
@@ -562,8 +731,8 @@ function Comandas() {
                                 variant="gradient"
                                 color="info"
                                 disabled={
-                                  !produtoUuid ||
-                                  !medidaDisponivel ||
+                                  itemDrafts.length === 0 ||
+                                  !draftsValidos ||
                                   (actionLoading && loadingAction !== "add")
                                 }
                                 loading={loadingAction === "add"}
@@ -578,60 +747,177 @@ function Comandas() {
                     )}
 
                     <MDBox display="flex" flexDirection="column" gap={1.5}>
-                      {selectedComanda.itens.map((item, index) => (
-                        <MDBox
-                          key={item.uuid || `${item.produtoUuid}-${index}`}
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
-                          p={2}
-                          borderRadius="lg"
-                          sx={{ border: "1px solid #e5e7eb" }}
-                        >
-                          <MDBox>
-                            <MDTypography variant="button" fontWeight="medium">
-                              {item.produtoNome}
-                            </MDTypography>
-                            <MDTypography variant="caption" color="text" display="block">
-                              {item.quantidadePedida} {item.tipoMedida.toLowerCase()} -{" "}
-                              {item.unidadesDeduzidas} un. baixadas
-                            </MDTypography>
-                          </MDBox>
-                          <MDBox display="flex" alignItems="center" gap={1}>
-                            <MDTypography variant="button" fontWeight="medium">
-                              {currency.format(Number(item.subtotal))}
-                            </MDTypography>
-                            {!selectedIsFiado && (
-                              <MDBox display="flex" alignItems="center">
-                                <Tooltip title="Editar item">
+                      {comandaEntries.map((entry) => {
+                        if (!entry.grouped) {
+                          const item = entry.items[0];
+                          return (
+                            <MDBox
+                              key={entry.key}
+                              display="flex"
+                              justifyContent="space-between"
+                              alignItems="center"
+                              p={2}
+                              borderRadius="lg"
+                              sx={{ border: "1px solid #e5e7eb" }}
+                            >
+                              <MDBox>
+                                <MDTypography variant="button" fontWeight="medium">
+                                  {item.produtoNome}
+                                </MDTypography>
+                                <MDTypography variant="caption" color="text" display="block">
+                                  {item.quantidadePedida} {item.tipoMedida.toLowerCase()} -{" "}
+                                  {item.unidadesDeduzidas} un. baixadas
+                                </MDTypography>
+                              </MDBox>
+                              <MDBox display="flex" alignItems="center" gap={1}>
+                                <MDTypography variant="button" fontWeight="medium">
+                                  {currency.format(Number(item.subtotal))}
+                                </MDTypography>
+                                {!selectedIsFiado && (
+                                  <MDBox display="flex" alignItems="center">
+                                    <Tooltip title="Editar item">
+                                      <IconButton
+                                        color="info"
+                                        size="small"
+                                        disabled={actionLoading}
+                                        onClick={() => openEditItem(item)}
+                                      >
+                                        <Icon fontSize="small">edit</Icon>
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Excluir item">
+                                      <IconButton
+                                        color="error"
+                                        size="small"
+                                        disabled={actionLoading}
+                                        onClick={() => handleDeleteItem(item)}
+                                      >
+                                        {loadingAction === `delete-${item.uuid}` ? (
+                                          <CircularProgress color="inherit" size={18} />
+                                        ) : (
+                                          <Icon fontSize="small">delete</Icon>
+                                        )}
+                                      </IconButton>
+                                    </Tooltip>
+                                  </MDBox>
+                                )}
+                              </MDBox>
+                            </MDBox>
+                          );
+                        }
+
+                        const expanded = expandedGroups.includes(entry.key);
+                        const subtotal = entry.items.reduce(
+                          (total, item) => total + Number(item.subtotal),
+                          0
+                        );
+                        return (
+                          <MDBox
+                            key={entry.key}
+                            borderRadius="lg"
+                            sx={{ border: "1px solid #dbeafe", overflow: "hidden" }}
+                          >
+                            <MDBox
+                              display="flex"
+                              justifyContent="space-between"
+                              alignItems="center"
+                              gap={2}
+                              p={2}
+                              sx={{ bgcolor: "#eff6ff" }}
+                            >
+                              <MDBox display="flex" alignItems="center" minWidth={0}>
+                                <Tooltip title={expanded ? "Recolher combo" : "Ver componentes"}>
                                   <IconButton
                                     color="info"
                                     size="small"
-                                    disabled={actionLoading}
-                                    onClick={() => openEditItem(item)}
+                                    onClick={() => toggleGroup(entry.key)}
+                                    sx={{ mr: 1 }}
                                   >
-                                    <Icon fontSize="small">edit</Icon>
+                                    <Icon fontSize="small">
+                                      {expanded ? "expand_less" : "expand_more"}
+                                    </Icon>
                                   </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Excluir item">
-                                  <IconButton
-                                    color="error"
-                                    size="small"
-                                    disabled={actionLoading}
-                                    onClick={() => handleDeleteItem(item)}
-                                  >
-                                    {loadingAction === `delete-${item.uuid}` ? (
-                                      <CircularProgress color="inherit" size={18} />
-                                    ) : (
-                                      <Icon fontSize="small">delete</Icon>
-                                    )}
-                                  </IconButton>
-                                </Tooltip>
+                                <MDBox minWidth={0}>
+                                  <MDTypography variant="button" fontWeight="bold">
+                                    {entry.items.map((item) => item.produtoNome).join(" + ")}
+                                  </MDTypography>
+                                  <MDTypography variant="caption" color="text" display="block">
+                                    Combo com {entry.items.length} componentes
+                                  </MDTypography>
+                                </MDBox>
                               </MDBox>
-                            )}
+                              <MDTypography variant="button" fontWeight="bold">
+                                {currency.format(subtotal)}
+                              </MDTypography>
+                            </MDBox>
+                            <Collapse in={expanded} timeout="auto" unmountOnExit>
+                              <Divider />
+                              <MDBox px={2}>
+                                {entry.items.map((item, index) => (
+                                  <MDBox
+                                    key={item.uuid}
+                                    display="flex"
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    gap={2}
+                                    py={1.5}
+                                    sx={{
+                                      borderBottom:
+                                        index < entry.items.length - 1
+                                          ? "1px solid #e5e7eb"
+                                          : "none",
+                                    }}
+                                  >
+                                    <MDBox>
+                                      <MDTypography variant="button" fontWeight="medium">
+                                        {item.produtoNome}
+                                      </MDTypography>
+                                      <MDTypography variant="caption" color="text" display="block">
+                                        {item.quantidadePedida} {item.tipoMedida.toLowerCase()} -{" "}
+                                        {item.unidadesDeduzidas} un. baixadas
+                                      </MDTypography>
+                                    </MDBox>
+                                    <MDBox display="flex" alignItems="center" gap={1}>
+                                      <MDTypography variant="button" fontWeight="medium">
+                                        {currency.format(Number(item.subtotal))}
+                                      </MDTypography>
+                                      {!selectedIsFiado && (
+                                        <MDBox display="flex" alignItems="center">
+                                          <Tooltip title="Editar componente">
+                                            <IconButton
+                                              color="info"
+                                              size="small"
+                                              disabled={actionLoading}
+                                              onClick={() => openEditItem(item)}
+                                            >
+                                              <Icon fontSize="small">edit</Icon>
+                                            </IconButton>
+                                          </Tooltip>
+                                          <Tooltip title="Excluir componente">
+                                            <IconButton
+                                              color="error"
+                                              size="small"
+                                              disabled={actionLoading}
+                                              onClick={() => handleDeleteItem(item)}
+                                            >
+                                              {loadingAction === `delete-${item.uuid}` ? (
+                                                <CircularProgress color="inherit" size={18} />
+                                              ) : (
+                                                <Icon fontSize="small">delete</Icon>
+                                              )}
+                                            </IconButton>
+                                          </Tooltip>
+                                        </MDBox>
+                                      )}
+                                    </MDBox>
+                                  </MDBox>
+                                ))}
+                              </MDBox>
+                            </Collapse>
                           </MDBox>
-                        </MDBox>
-                      ))}
+                        );
+                      })}
                       {selectedComanda.itens.length === 0 && (
                         <MDTypography variant="button" color="text">
                           Nenhum item adicionado.
@@ -873,7 +1159,7 @@ function Comandas() {
               <Grid item xs={12}>
                 <Autocomplete
                   openOnFocus
-                  options={produtos}
+                  options={editProdutoOptions}
                   value={selectedEditProduto || null}
                   getOptionLabel={(produto) => `${produto.nome} (${produto.quantidadeEstoqueUnidades} un.)`}
                   isOptionEqualToValue={(option, value) => option.uuid === value.uuid}

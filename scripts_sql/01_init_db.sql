@@ -135,11 +135,14 @@ CREATE TABLE IF NOT EXISTS comanda_item (
     unidades_deduzidas INT NOT NULL,
     tipo_medida_vendida VARCHAR(20) NOT NULL,
     valor_cobrado_unitario DECIMAL(10,2) NOT NULL,
+    grupo_uuid BINARY(16) NULL,
+    ordem_grupo INT NULL,
     CONSTRAINT fk_item_comanda_uuid FOREIGN KEY (comanda_uuid) REFERENCES comanda(uuid),
     CONSTRAINT fk_item_produto_uuid FOREIGN KEY (produto_uuid) REFERENCES produto(uuid),
     CONSTRAINT chk_item_quantidade CHECK (quantidade_pedida > 0),
     CONSTRAINT chk_item_unidades CHECK (unidades_deduzidas > 0),
     CONSTRAINT chk_item_tipo_medida CHECK (tipo_medida_vendida IN ('UNIDADE', 'CAIXA')),
     INDEX idx_item_comanda (comanda_uuid),
-    INDEX idx_item_produto (produto_uuid)
+    INDEX idx_item_produto (produto_uuid),
+    INDEX idx_item_grupo (grupo_uuid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

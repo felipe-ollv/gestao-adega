@@ -37,6 +37,14 @@ export type ComandaItem = {
   tipoMedida: TipoMedidaVenda;
   valorUnitario: number;
   subtotal: number;
+  grupoUuid?: string | null;
+  ordemGrupo?: number | null;
+};
+
+export type ComandaItemInput = {
+  produtoUuid: string;
+  quantidade: number;
+  tipoMedida: TipoMedidaVenda;
 };
 
 export type Comanda = {
@@ -91,13 +99,17 @@ export const comandasApi = {
     api.post<Comanda>("/comandas", { nomeResponsavel }).then((response) => response.data),
   addItem: (
     comandaUuid: string,
-    payload: { produtoUuid: string; quantidade: number; tipoMedida: TipoMedidaVenda }
+    payload: ComandaItemInput
   ) =>
     api.post<Comanda>(`/comandas/${comandaUuid}/itens`, payload).then((response) => response.data),
+  addItems: (comandaUuid: string, itens: ComandaItemInput[]) =>
+    api
+      .post<Comanda>(`/comandas/${comandaUuid}/itens/lote`, { itens })
+      .then((response) => response.data),
   updateItem: (
     comandaUuid: string,
     itemUuid: string,
-    payload: { produtoUuid: string; quantidade: number; tipoMedida: TipoMedidaVenda }
+    payload: ComandaItemInput
   ) =>
     api.put<Comanda>(`/comandas/${comandaUuid}/itens/${itemUuid}`, payload).then((response) => response.data),
   deleteItem: (comandaUuid: string, itemUuid: string) =>

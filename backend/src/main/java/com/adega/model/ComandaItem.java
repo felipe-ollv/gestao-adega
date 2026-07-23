@@ -49,6 +49,13 @@ public class ComandaItem extends PanacheEntityBase {
     @Column(name = "valor_cobrado_unitario", nullable = false, precision = 10, scale = 2)
     public BigDecimal valorCobradoUnitario;
 
+    @JdbcTypeCode(SqlTypes.BINARY)
+    @Column(name = "grupo_uuid", columnDefinition = "BINARY(16)")
+    public UUID grupoUuid;
+
+    @Column(name = "ordem_grupo")
+    public Integer ordemGrupo;
+
     @jakarta.persistence.PrePersist
     void prePersist() {
         if (uuid == null) {
