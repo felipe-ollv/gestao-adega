@@ -227,11 +227,22 @@ function Home() {
       (comanda) =>
         comanda.status === "PAGA" && isWithinBillingRange(comanda.dataFechamento, billingRange)
     );
+    const fiadoNoPeriodo = fiado.filter((comanda) =>
+      isWithinBillingRange(comanda.dataFechamento, billingRange)
+    );
     const fiadoTotal = fiado.reduce(
       (acc, comanda) => acc + Number(comanda.saldoPendente ?? comanda.total ?? 0),
       0
     );
-    const faturamento = pagasNoPeriodo.reduce((acc, comanda) => acc + Number(comanda.total || 0), 0);
+    const faturamentoPago = pagasNoPeriodo.reduce(
+      (acc, comanda) => acc + Number(comanda.total || 0),
+      0
+    );
+    const faturamentoParcialFiado = fiadoNoPeriodo.reduce(
+      (acc, comanda) => acc + Number(comanda.valorPagoParcial || 0),
+      0
+    );
+    const faturamento = faturamentoPago + faturamentoParcialFiado;
     const baixoEstoque = produtos.filter(
       (produto) => produto.quantidadeEstoqueUnidades <= produto.alertaEstoqueUnidades
     );

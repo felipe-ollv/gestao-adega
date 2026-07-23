@@ -420,12 +420,12 @@ function Comandas() {
                           <MDTypography variant="caption" fontWeight="medium" display="block">
                             {comanda.nomeResponsavel} - {currency.format(Number(comanda.total || 0))}
                           </MDTypography>
-                          {Number(comanda.valorPagoParcial || 0) > 0 && (
-                            <MDTypography variant="caption" display="block">
-                              Pago {currency.format(Number(comanda.valorPagoParcial || 0))} | Restante{" "}
-                              {currency.format(Number(comanda.saldoPendente || 0))}
-                            </MDTypography>
-                          )}
+                          {/*{Number(comanda.valorPagoParcial || 0) > 0 && (*/}
+                          {/*  <MDTypography variant="caption" display="block">*/}
+                          {/*    Pago {currency.format(Number(comanda.valorPagoParcial || 0))} | Restante{" "}*/}
+                          {/*    {currency.format(Number(comanda.saldoPendente || 0))}*/}
+                          {/*  </MDTypography>*/}
+                          {/*)}*/}
                         </MDBox>
                       </MDButton>
                     ))}
