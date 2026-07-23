@@ -76,6 +76,7 @@ function Comandas() {
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [deleteObservation, setDeleteObservation] = useState("");
   const [error, setError] = useState("");
+  const [copiedComanda, setCopiedComanda] = useState(false);
   const [loadingAction, setLoadingAction] = useState<LoadingAction | null>(null);
 
   const allComandas = useMemo(
@@ -246,6 +247,56 @@ function Comandas() {
         ? current.filter((uuid) => uuid !== grupoUuid)
         : [...current, grupoUuid]
     );
+  };
+
+  const handleCopyComanda = async () => {
+    if (!selectedComanda || !selectedIsFiado) return;
+
+    const formatItem = (item: ComandaItem, prefix: string) => {
+      const medida =
+        item.tipoMedida === "CAIXA"
+          ? item.quantidadePedida === 1
+            ? "caixa"
+            : "caixas"
+          : item.quantidadePedida === 1
+            ? "unidade"
+            : "unidades";
+      return `${prefix}${item.produtoNome}: ${item.quantidadePedida} ${medida} × ${currency.format(
+        Number(item.valorUnitario)
+      )} = ${currency.format(Number(item.subtotal))}`;
+    };
+
+    const lines = [`Comanda: ${selectedComanda.nomeResponsavel}`, "", "Produtos:"];
+    comandaEntries.forEach((entry) => {
+      if (entry.grouped) {
+        lines.push(`- Combo: ${entry.items.map((item) => item.produtoNome).join(" + ")}`);
+        entry.items.forEach((item) => lines.push(formatItem(item, "  - ")));
+      } else {
+        lines.push(formatItem(entry.items[0], "- "));
+      }
+    });
+    lines.push("", `Total da comanda: ${currency.format(Number(selectedComanda.total || 0))}`);
+
+    try {
+      const text = lines.join("\n");
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.select();
+        const copied = document.execCommand("copy");
+        textArea.remove();
+        if (!copied) throw new Error("Copy command failed");
+      }
+      setCopiedComanda(true);
+      window.setTimeout(() => setCopiedComanda(false), 2000);
+    } catch {
+      setError("Não foi possível copiar o texto da comanda.");
+    }
   };
 
   const openEditItem = (item: ComandaItem) => {
@@ -562,6 +613,17 @@ function Comandas() {
                           }}
                         >
                           Baixa parcial
+                        </MDButton>
+                      )}
+                      {selectedIsFiado && (
+                        <MDButton
+                          variant="outlined"
+                          color="success"
+                          disabled={actionLoading}
+                          onClick={handleCopyComanda}
+                        >
+                          <Icon fontSize="small">{copiedComanda ? "check" : "content_copy"}</Icon>
+                          &nbsp;{copiedComanda ? "Copiada" : "Copiar comanda"}
                         </MDButton>
                       )}
                       <MDButton
