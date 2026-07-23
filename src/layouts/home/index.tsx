@@ -227,6 +227,9 @@ function Home() {
       (comanda) =>
         comanda.status === "PAGA" && isWithinBillingRange(comanda.dataFechamento, billingRange)
     );
+    const abertasNoPeriodo = abertas.filter((comanda) =>
+      isWithinBillingRange(comanda.dataAbertura, billingRange)
+    );
     const fiadoNoPeriodo = fiado.filter((comanda) =>
       isWithinBillingRange(comanda.dataFechamento, billingRange)
     );
@@ -242,7 +245,11 @@ function Home() {
       (acc, comanda) => acc + Number(comanda.valorPagoParcial || 0),
       0
     );
-    const faturamento = faturamentoPago + faturamentoParcialFiado;
+    const faturamentoParcialAberto = abertasNoPeriodo.reduce(
+      (acc, comanda) => acc + Number(comanda.valorPagoParcial || 0),
+      0
+    );
+    const faturamento = faturamentoPago + faturamentoParcialFiado + faturamentoParcialAberto;
     const baixoEstoque = produtos.filter(
       (produto) => produto.quantidadeEstoqueUnidades <= produto.alertaEstoqueUnidades
     );
