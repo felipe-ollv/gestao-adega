@@ -4,38 +4,90 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pagamento confirmado</title>
+    <style>
+      @media only screen and (max-width: 520px) {
+        .email-outer { padding: 12px 0 !important; }
+        .email-card { border-radius: 0 !important; }
+        .email-hero { height: 220px !important; }
+        .email-content { padding: 44px 24px 52px !important; }
+        .email-title { font-size: 36px !important; }
+        .detail-marker { width: 58px !important; height: 58px !important; }
+        .detail-label { font-size: 9px !important; }
+        .detail-value { font-size: 16px !important; padding-left: 18px !important; }
+        .cta-table { width: 100% !important; }
+      }
+    </style>
   </head>
-  <body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#111827;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:32px 16px;">
+  <body style="margin:0;background:#f0f2f5;font-family:Arial,Helvetica,sans-serif;color:#344767;">
+    <table class="email-outer" role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:#f0f2f5;padding:24px 12px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+          <table class="email-card" role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;background:#ffffff;border:1px solid #dee2e6;border-radius:12px;overflow:hidden;">
             <tr>
-              <td style="background:#0f766e;padding:24px 28px;">
-                <p style="margin:0;color:#ccfbf1;font-size:13px;">Gestao Comercio</p>
-                <h1 style="margin:6px 0 0;color:#ffffff;font-size:24px;line-height:1.25;">Pagamento confirmado</h1>
+              <td class="email-hero" height="260" align="center" valign="middle" style="height:260px;background:#111827;padding:0 24px;">
+                <p style="margin:0;color:#ffffff;font-size:30px;line-height:1.2;font-weight:bold;">Gestāo Comércio</p>
               </td>
             </tr>
             <tr>
-              <td style="padding:28px;">
-                <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">Recebemos o pagamento da mensalidade do comercio <strong>{{adegaNome}}</strong>.</p>
-                <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#374151;">O acesso ao painel esta liberado para a competencia informada abaixo.</p>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:8px;margin:0 0 24px;">
+              <td class="email-content" style="padding:60px 48px 68px;">
+                <h1 class="email-title" style="margin:0 0 30px;color:#344767;font-size:48px;line-height:1.12;text-align:center;font-weight:normal;">Pagamento confirmado</h1>
+                <p style="margin:0 0 14px;font-size:17px;line-height:1.65;text-align:center;">Recebemos o pagamento da mensalidade do comercio <strong>{{adegaNome}}</strong>.</p>
+                <p style="margin:0;font-size:15px;line-height:1.65;color:#6c757d;text-align:center;">O acesso ao painel esta liberado para a competencia informada abaixo.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;margin:44px 0 48px;">
                   <tr>
-                    <td style="padding:16px 18px;font-size:14px;color:#14532d;">
-                      <strong>Status:</strong> {{statusPagamento}}<br />
-                      <strong>Periodo:</strong> {{periodoMensalidade}}<br />
-                      <strong>Data do pagamento:</strong> {{dataPagamento}}<br />
-                      <strong>Valido ate:</strong> {{dataVencimento}}
+                    <td width="72" valign="middle">
+                      <table class="detail-marker" role="presentation" width="64" height="64" cellspacing="0" cellpadding="0" style="width:64px;height:64px;border:3px solid #dee2e6;border-radius:12px;">
+                        <tr><td class="detail-label" align="center" valign="middle" style="padding:6px;color:#1A73E8;font-size:10px;line-height:1.15;font-weight:bold;text-align:center;">Status:</td></tr>
+                      </table>
+                    </td>
+                    <td class="detail-value" valign="middle" style="padding-left:24px;color:#344767;font-size:18px;line-height:1.35;font-weight:bold;">{{statusPagamento}}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" height="28" style="height:28px;"></td>
+                  </tr>
+                  <tr>
+                    <td width="72" valign="middle">
+                      <table class="detail-marker" role="presentation" width="64" height="64" cellspacing="0" cellpadding="0" style="width:64px;height:64px;border:3px solid #dee2e6;border-radius:12px;">
+                        <tr><td class="detail-label" align="center" valign="middle" style="padding:6px;color:#1A73E8;font-size:10px;line-height:1.15;font-weight:bold;text-align:center;">Periodo:</td></tr>
+                      </table>
+                    </td>
+                    <td class="detail-value" valign="middle" style="padding-left:24px;color:#344767;font-size:18px;line-height:1.35;font-weight:bold;">{{periodoMensalidade}}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" height="28" style="height:28px;"></td>
+                  </tr>
+                  <tr>
+                    <td width="72" valign="middle">
+                      <table class="detail-marker" role="presentation" width="64" height="64" cellspacing="0" cellpadding="0" style="width:64px;height:64px;border:3px solid #dee2e6;border-radius:12px;">
+                        <tr><td class="detail-label" align="center" valign="middle" style="padding:6px;color:#1A73E8;font-size:10px;line-height:1.15;font-weight:bold;text-align:center;">Data do pagamento:</td></tr>
+                      </table>
+                    </td>
+                    <td class="detail-value" valign="middle" style="padding-left:24px;color:#344767;font-size:18px;line-height:1.35;font-weight:bold;">{{dataPagamento}}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" height="28" style="height:28px;"></td>
+                  </tr>
+                  <tr>
+                    <td width="72" valign="middle">
+                      <table class="detail-marker" role="presentation" width="64" height="64" cellspacing="0" cellpadding="0" style="width:64px;height:64px;border:3px solid #dee2e6;border-radius:12px;">
+                        <tr><td class="detail-label" align="center" valign="middle" style="padding:6px;color:#1A73E8;font-size:10px;line-height:1.15;font-weight:bold;text-align:center;">Valido ate:</td></tr>
+                      </table>
+                    </td>
+                    <td class="detail-value" valign="middle" style="padding-left:24px;color:#344767;font-size:18px;line-height:1.35;font-weight:bold;">{{dataVencimento}}</td>
+                  </tr>
+                </table>
+                <table class="cta-table" role="presentation" width="360" cellspacing="0" cellpadding="0" align="center" style="width:100%;max-width:360px;">
+                  <tr>
+                    <td align="center" bgcolor="#1A73E8" style="background:#1A73E8;border-radius:999px;">
+                      <a href="{{loginUrl}}" style="display:block;padding:16px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-size:17px;line-height:1.2;border-radius:999px;">Acessar painel</a>
                     </td>
                   </tr>
                 </table>
-                <a href="{{loginUrl}}" style="display:inline-block;background:#1a73e8;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 18px;border-radius:6px;">Acessar painel</a>
               </td>
             </tr>
             <tr>
-              <td style="padding:18px 28px;background:#f9fafb;color:#6b7280;font-size:12px;">
-                © {{anoAtual}} Gestao Comercio. Mensagem enviada para {{destinatarioEmail}}.
+              <td align="center" style="padding:18px 24px;background:#f8f9fa;border-top:1px solid #dee2e6;color:#6c757d;font-size:12px;line-height:1.5;text-align:center;">
+                © {{anoAtual}} Gestāo Comércio. Mensagem enviada para {{destinatarioEmail}}.
               </td>
             </tr>
           </table>

@@ -332,6 +332,16 @@ function Home() {
         )}
 
         <Grid container spacing={3}>
+          {isGestor && (
+              <Grid item xs={12} md={3}>
+                <StatCard
+                    label="Faturado"
+                    value={currency.format(metrics.faturamento)}
+                    helper={getBillingLabel(billingPeriod, billingValue)}
+                    tone="paid"
+                />
+              </Grid>
+          )}
           <Grid item xs={12} md={isGestor ? 3 : 4}>
             <StatCard
               label="Comandas abertas"
@@ -348,16 +358,7 @@ function Home() {
               tone="credit"
             />
           </Grid>
-          {isGestor && (
-            <Grid item xs={12} md={3}>
-              <StatCard
-                label="Faturado"
-                value={currency.format(metrics.faturamento)}
-                helper={getBillingLabel(billingPeriod, billingValue)}
-                tone="paid"
-              />
-            </Grid>
-          )}
+
           <Grid item xs={12} md={isGestor ? 3 : 4}>
               <StatCard
                 label="Baixo estoque"
