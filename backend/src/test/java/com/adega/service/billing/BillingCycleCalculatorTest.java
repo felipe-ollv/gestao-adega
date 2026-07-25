@@ -8,10 +8,10 @@ import org.junit.jupiter.api.Test;
 class BillingCycleCalculatorTest {
     @Test
     void paidPeriodStartsOnPaymentDate() {
-        BillingCycle cycle = BillingCycleCalculator.fromPaymentDate(LocalDate.of(2026, 7, 20));
+        BillingCycle cycle = BillingCycleCalculator.fromPaymentDate(LocalDate.of(2026, 7, 25));
 
-        assertEquals(LocalDate.of(2026, 7, 20), cycle.startDate());
-        assertEquals(LocalDate.of(2026, 8, 19), cycle.endDate());
+        assertEquals(LocalDate.of(2026, 7, 25), cycle.startDate());
+        assertEquals(LocalDate.of(2026, 8, 24), cycle.endDate());
     }
 
     @Test

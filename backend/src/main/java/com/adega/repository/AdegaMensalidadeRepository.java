@@ -3,11 +3,14 @@ package com.adega.repository;
 import com.adega.model.Adega;
 import com.adega.model.AdegaMensalidade;
 import com.adega.model.StatusPagamento;
+import com.adega.service.billing.BillingCycle;
+import com.adega.service.billing.PaidBillingCycleNormalizer;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @ApplicationScoped
@@ -24,10 +27,22 @@ public class AdegaMensalidadeRepository implements PanacheRepositoryBase<AdegaMe
     @Transactional
     public AdegaMensalidade createPendingCurrentCycle(Adega adega) {
         LocalDate today = com.adega.util.BusinessTime.today();
+        normalizePaidCycles(adega);
 
         return findActivePaid(adega, today)
                 .or(() -> findLatestPending(adega))
                 .orElseGet(() -> findOrCreatePending(adega, today));
+    }
+
+    @Transactional
+    public void normalizePaidCycles(Adega adega) {
+        List<AdegaMensalidade> paidCycles = list(
+                "adega = ?1 and status = ?2 order by dataPagamento, id",
+                adega,
+                StatusPagamento.PAGO
+        );
+
+        paidCycles.forEach(this::normalizePaidCycle);
     }
 
     public Optional<AdegaMensalidade> findRegistrationCycle(Adega adega) {
@@ -63,6 +78,34 @@ public class AdegaMensalidadeRepository implements PanacheRepositoryBase<AdegaMe
                     persist(mensalidade);
                     return mensalidade;
                 });
+    }
+
+    private void normalizePaidCycle(AdegaMensalidade monthlyPayment) {
+        BillingCycle expectedCycle = PaidBillingCycleNormalizer.expectedCycle(monthlyPayment);
+
+        findByAdegaAndCompetencia(monthlyPayment.adega, expectedCycle.startDate())
+                .filter(conflict -> !Objects.equals(conflict.id, monthlyPayment.id))
+                .ifPresent(conflict -> removeConflictingCycle(monthlyPayment, conflict));
+
+        PaidBillingCycleNormalizer.normalize(monthlyPayment);
+    }
+
+    private void removeConflictingCycle(
+            AdegaMensalidade monthlyPayment,
+            AdegaMensalidade conflictingCycle
+    ) {
+        if (conflictingCycle.status == StatusPagamento.PAGO) {
+            throw new IllegalStateException(
+                    "Existem duas mensalidades pagas para a adega "
+                            + monthlyPayment.adega.uuid
+                            + " com início em "
+                            + conflictingCycle.competencia
+                            + "."
+            );
+        }
+
+        delete(conflictingCycle);
+        flush();
     }
 
     private LocalDate registrationDate(Adega adega) {

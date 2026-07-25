@@ -35,25 +35,6 @@ CALL run_if(@has_fk = 0, 'ALTER TABLE usuario ADD CONSTRAINT fk_usuario_adega_uu
 
 SET @has_old = (
     SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE() AND table_name = 'adega_pagamento' AND column_name = 'adega_id'
-);
-SET @has_new = (
-    SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE() AND table_name = 'adega_pagamento' AND column_name = 'adega_uuid'
-);
-CALL run_if(@has_new = 0, 'ALTER TABLE adega_pagamento ADD COLUMN adega_uuid BINARY(16) NULL AFTER id');
-CALL run_if(@has_old > 0, 'UPDATE adega_pagamento p JOIN adega a ON a.id = p.adega_id SET p.adega_uuid = a.uuid WHERE p.adega_uuid IS NULL');
-CALL run_if(@has_old > 0, 'ALTER TABLE adega_pagamento DROP FOREIGN KEY fk_pagamento_adega');
-CALL run_if(@has_old > 0, 'ALTER TABLE adega_pagamento DROP COLUMN adega_id');
-CALL run_if(TRUE, 'ALTER TABLE adega_pagamento MODIFY adega_uuid BINARY(16) NOT NULL');
-SET @has_fk = (
-    SELECT COUNT(*) FROM information_schema.referential_constraints
-    WHERE constraint_schema = DATABASE() AND constraint_name = 'fk_pagamento_adega_uuid'
-);
-CALL run_if(@has_fk = 0, 'ALTER TABLE adega_pagamento ADD CONSTRAINT fk_pagamento_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid)');
-
-SET @has_old = (
-    SELECT COUNT(*) FROM information_schema.columns
     WHERE table_schema = DATABASE() AND table_name = 'adega_mensalidade' AND column_name = 'adega_id'
 );
 SET @has_new = (
