@@ -20,11 +20,11 @@ import com.adega.repository.AdegaRepository;
 import com.adega.repository.ComandaItemRepository;
 import com.adega.repository.ComandaRepository;
 import com.adega.repository.ProdutoRepository;
+import com.adega.util.BusinessTime;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -184,7 +184,7 @@ public class ComandaService {
         }
 
         comanda.status = request.status();
-        comanda.dataFechamento = Instant.now();
+        comanda.dataFechamento = BusinessTime.now();
         if (request.status() == StatusComanda.PAGA) {
             comanda.valorPagoParcial = total(comanda);
         }
@@ -234,7 +234,7 @@ public class ComandaService {
         }
 
         comanda.status = StatusComanda.EXCLUIDA;
-        comanda.dataExclusao = Instant.now();
+        comanda.dataExclusao = BusinessTime.now();
         comanda.observacaoExclusao = request.observacao().trim();
     }
 

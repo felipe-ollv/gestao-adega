@@ -1,5 +1,6 @@
 package com.adega.model;
 
+import com.adega.util.BusinessTime;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -16,7 +17,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -42,13 +43,13 @@ public class Comanda extends PanacheEntityBase {
     public String nomeResponsavel;
 
     @Column(name = "data_abertura", nullable = false)
-    public Instant dataAbertura;
+    public LocalDateTime dataAbertura;
 
     @Column(name = "data_fechamento")
-    public Instant dataFechamento;
+    public LocalDateTime dataFechamento;
 
     @Column(name = "data_exclusao")
-    public Instant dataExclusao;
+    public LocalDateTime dataExclusao;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -69,7 +70,7 @@ public class Comanda extends PanacheEntityBase {
             uuid = UUID.randomUUID();
         }
         if (dataAbertura == null) {
-            dataAbertura = Instant.now();
+            dataAbertura = BusinessTime.now();
         }
         if (valorPagoParcial == null) {
             valorPagoParcial = BigDecimal.ZERO;

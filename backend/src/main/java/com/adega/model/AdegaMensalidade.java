@@ -1,5 +1,6 @@
 package com.adega.model;
 
+import com.adega.util.BusinessTime;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,8 +16,8 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(
@@ -43,17 +44,17 @@ public class AdegaMensalidade extends PanacheEntityBase {
     public LocalDate dataVencimento;
 
     @Column(name = "data_pagamento")
-    public Instant dataPagamento;
+    public LocalDateTime dataPagamento;
 
     @Column(name = "data_cadastro", nullable = false)
-    public Instant dataCadastro;
+    public LocalDateTime dataCadastro;
 
     @Column(name = "data_atualizacao", nullable = false)
-    public Instant dataAtualizacao;
+    public LocalDateTime dataAtualizacao;
 
     @PrePersist
     void prePersist() {
-        Instant now = Instant.now();
+        LocalDateTime now = BusinessTime.now();
         if (dataCadastro == null) {
             dataCadastro = now;
         }
@@ -64,6 +65,6 @@ public class AdegaMensalidade extends PanacheEntityBase {
 
     @PreUpdate
     void preUpdate() {
-        dataAtualizacao = Instant.now();
+        dataAtualizacao = BusinessTime.now();
     }
 }

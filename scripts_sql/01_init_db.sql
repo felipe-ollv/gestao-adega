@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS adega (
     uuid BINARY(16) NOT NULL UNIQUE,
     nome VARCHAR(100) NOT NULL,
     cnpj_cpf VARCHAR(14) NOT NULL UNIQUE,
-    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    data_cadastro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS usuario (
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS usuario (
     senha_hash VARCHAR(255) NOT NULL,
     perfil VARCHAR(20) NOT NULL,
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
-    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_cadastro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_usuario_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
     CONSTRAINT chk_usuario_perfil CHECK (perfil IN ('GESTOR', 'ATENDENTE'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -24,9 +24,9 @@ CREATE TABLE IF NOT EXISTS adega_pagamento (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     adega_uuid BINARY(16) NOT NULL UNIQUE,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
-    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_atualizacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    data_pagamento TIMESTAMP NULL,
+    data_cadastro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    data_pagamento DATETIME NULL,
     CONSTRAINT fk_pagamento_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
     CONSTRAINT chk_pagamento_status CHECK (status IN ('PENDENTE', 'PAGO')),
     INDEX idx_pagamento_status (status)
@@ -47,9 +47,9 @@ CREATE TABLE IF NOT EXISTS adega_mensalidade (
     competencia DATE NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
     data_vencimento DATE NOT NULL,
-    data_pagamento TIMESTAMP NULL,
-    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_atualizacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    data_pagamento DATETIME NULL,
+    data_cadastro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_mensalidade_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
     CONSTRAINT chk_mensalidade_status CHECK (status IN ('PENDENTE', 'PAGO')),
     CONSTRAINT uk_mensalidade_adega_competencia UNIQUE (adega_uuid, competencia),
@@ -59,11 +59,11 @@ CREATE TABLE IF NOT EXISTS adega_mensalidade (
 INSERT INTO adega_mensalidade (adega_uuid, competencia, status, data_vencimento)
 SELECT
     a.uuid,
-    DATE(CONVERT_TZ(a.data_cadastro, @@session.time_zone, '-03:00')),
+    DATE(a.data_cadastro),
     'PENDENTE',
     DATE_SUB(
         DATE_ADD(
-            DATE(CONVERT_TZ(a.data_cadastro, @@session.time_zone, '-03:00')),
+            DATE(a.data_cadastro),
             INTERVAL 1 MONTH
         ),
         INTERVAL 1 DAY
@@ -73,7 +73,7 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM adega_mensalidade m
     WHERE m.adega_uuid = a.uuid
-      AND m.competencia = DATE(CONVERT_TZ(a.data_cadastro, @@session.time_zone, '-03:00'))
+      AND m.competencia = DATE(a.data_cadastro)
 );
 
 CREATE TABLE IF NOT EXISTS produto (
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS notificacao_email (
     chave_referencia VARCHAR(255) NOT NULL UNIQUE,
     destinatario VARCHAR(120) NOT NULL,
     provider_id VARCHAR(100) NULL,
-    data_envio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_envio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_notificacao_email_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
     INDEX idx_notificacao_email_adega_tipo (adega_uuid, tipo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -115,9 +115,9 @@ CREATE TABLE IF NOT EXISTS comanda (
     uuid BINARY(16) NOT NULL UNIQUE,
     adega_uuid BINARY(16) NOT NULL,
     nome_responsavel VARCHAR(100) NOT NULL,
-    data_abertura TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_fechamento TIMESTAMP NULL,
-    data_exclusao TIMESTAMP NULL,
+    data_abertura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_fechamento DATETIME NULL,
+    data_exclusao DATETIME NULL,
     status VARCHAR(20) NOT NULL,
     valor_pago_parcial DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     observacao_exclusao VARCHAR(500) NULL,

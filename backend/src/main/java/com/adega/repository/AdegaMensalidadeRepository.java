@@ -7,14 +7,11 @@ import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 @ApplicationScoped
 public class AdegaMensalidadeRepository implements PanacheRepositoryBase<AdegaMensalidade, Long> {
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Sao_Paulo");
-
     public Optional<AdegaMensalidade> findByAdegaAndCompetencia(Adega adega, LocalDate competencia) {
         return find("adega = ?1 and competencia = ?2", adega, competencia).firstResultOptional();
     }
@@ -26,7 +23,7 @@ public class AdegaMensalidadeRepository implements PanacheRepositoryBase<AdegaMe
 
     @Transactional
     public AdegaMensalidade createPendingCurrentCycle(Adega adega) {
-        LocalDate today = LocalDate.now(BUSINESS_ZONE);
+        LocalDate today = com.adega.util.BusinessTime.today();
 
         return findActivePaid(adega, today)
                 .or(() -> findLatestPending(adega))
@@ -69,7 +66,7 @@ public class AdegaMensalidadeRepository implements PanacheRepositoryBase<AdegaMe
     }
 
     private LocalDate registrationDate(Adega adega) {
-        return adega.dataCadastro.atZone(BUSINESS_ZONE).toLocalDate();
+        return adega.dataCadastro.toLocalDate();
     }
 
     public List<AdegaMensalidade> listAllOrdered() {

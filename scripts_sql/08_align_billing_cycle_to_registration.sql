@@ -34,7 +34,7 @@ FROM adega_mensalidade m
 JOIN (
     SELECT
         uuid,
-        DATE(CONVERT_TZ(data_cadastro, @@session.time_zone, '-03:00')) AS data_cadastro
+        DATE(data_cadastro) AS data_cadastro
     FROM adega
 ) a ON a.uuid = m.adega_uuid;
 

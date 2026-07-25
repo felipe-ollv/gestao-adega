@@ -4,9 +4,9 @@ CREATE TABLE IF NOT EXISTS adega_mensalidade (
     competencia DATE NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
     data_vencimento DATE NOT NULL,
-    data_pagamento TIMESTAMP NULL,
-    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_atualizacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    data_pagamento DATETIME NULL,
+    data_cadastro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_mensalidade_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
     CONSTRAINT chk_mensalidade_status CHECK (status IN ('PENDENTE', 'PAGO')),
     CONSTRAINT uk_mensalidade_adega_competencia UNIQUE (adega_uuid, competencia),
@@ -16,11 +16,11 @@ CREATE TABLE IF NOT EXISTS adega_mensalidade (
 INSERT INTO adega_mensalidade (adega_uuid, competencia, status, data_vencimento)
 SELECT
     a.uuid,
-    DATE(CONVERT_TZ(a.data_cadastro, @@session.time_zone, '-03:00')),
+    DATE(a.data_cadastro),
     'PENDENTE',
     DATE_SUB(
         DATE_ADD(
-            DATE(CONVERT_TZ(a.data_cadastro, @@session.time_zone, '-03:00')),
+            DATE(a.data_cadastro),
             INTERVAL 1 MONTH
         ),
         INTERVAL 1 DAY
@@ -30,5 +30,5 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM adega_mensalidade m
     WHERE m.adega_uuid = a.uuid
-      AND m.competencia = DATE(CONVERT_TZ(a.data_cadastro, @@session.time_zone, '-03:00'))
+      AND m.competencia = DATE(a.data_cadastro)
 );

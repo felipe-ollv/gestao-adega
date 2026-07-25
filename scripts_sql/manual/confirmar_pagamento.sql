@@ -1,6 +1,6 @@
 SET @adega_uuid_texto = 'SUBSTITUA-PELO-UUID-DO-COMERCIO';
 SET @adega_uuid = UUID_TO_BIN(@adega_uuid_texto);
-SET @data_inicio = DATE(CONVERT_TZ(CURRENT_TIMESTAMP, @@session.time_zone, '-03:00'));
+SET @data_inicio = DATE(CURRENT_TIMESTAMP);
 
 -- O agendador de e-mails detectara o status PAGO e enviara a confirmacao.
 

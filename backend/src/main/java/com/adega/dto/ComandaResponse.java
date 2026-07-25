@@ -3,16 +3,16 @@ package com.adega.dto;
 import com.adega.model.Comanda;
 import com.adega.model.StatusComanda;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 public record ComandaResponse(
         UUID uuid,
         String nomeResponsavel,
-        Instant dataAbertura,
-        Instant dataFechamento,
-        Instant dataExclusao,
+        LocalDateTime dataAbertura,
+        LocalDateTime dataFechamento,
+        LocalDateTime dataExclusao,
         StatusComanda status,
         List<ComandaItemResponse> itens,
         BigDecimal total,

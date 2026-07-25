@@ -1,5 +1,6 @@
 package com.adega.model;
 
+import com.adega.util.BusinessTime;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,7 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -47,7 +48,7 @@ public class NotificacaoEmail extends PanacheEntityBase {
     public String providerId;
 
     @Column(name = "data_envio", nullable = false)
-    public Instant dataEnvio;
+    public LocalDateTime dataEnvio;
 
     @PrePersist
     void prePersist() {
@@ -55,7 +56,7 @@ public class NotificacaoEmail extends PanacheEntityBase {
             uuid = UUID.randomUUID();
         }
         if (dataEnvio == null) {
-            dataEnvio = Instant.now();
+            dataEnvio = BusinessTime.now();
         }
     }
 }

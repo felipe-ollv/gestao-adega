@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS notificacao_email (
     chave_referencia VARCHAR(255) NOT NULL UNIQUE,
     destinatario VARCHAR(120) NOT NULL,
     provider_id VARCHAR(100) NULL,
-    data_envio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_envio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_notificacao_email_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
     INDEX idx_notificacao_email_adega_tipo (adega_uuid, tipo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

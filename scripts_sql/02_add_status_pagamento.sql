@@ -2,9 +2,9 @@ CREATE TABLE IF NOT EXISTS adega_pagamento (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     adega_uuid BINARY(16) NOT NULL UNIQUE,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
-    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_atualizacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    data_pagamento TIMESTAMP NULL,
+    data_cadastro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    data_pagamento DATETIME NULL,
     CONSTRAINT fk_pagamento_adega_uuid FOREIGN KEY (adega_uuid) REFERENCES adega(uuid),
     CONSTRAINT chk_pagamento_status CHECK (status IN ('PENDENTE', 'PAGO')),
     INDEX idx_pagamento_status (status)

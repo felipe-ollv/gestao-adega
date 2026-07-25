@@ -17,8 +17,8 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -179,7 +179,7 @@ public class EmailNotificationScheduler {
     }
 
     private void sendPaymentConfirmation(AdegaMensalidade monthlyPayment) {
-        Instant paymentDate = monthlyPayment.dataPagamento != null
+        LocalDateTime paymentDate = monthlyPayment.dataPagamento != null
                 ? monthlyPayment.dataPagamento
                 : monthlyPayment.dataAtualizacao;
 
@@ -315,14 +315,12 @@ public class EmailNotificationScheduler {
     }
 
     private boolean wasCreatedBeforeToday(AdegaMensalidade monthlyPayment) {
-        LocalDate creationDate = monthlyPayment.dataCadastro.atZone(BUSINESS_ZONE).toLocalDate();
+        LocalDate creationDate = monthlyPayment.dataCadastro.toLocalDate();
         return creationDate.isBefore(LocalDate.now(BUSINESS_ZONE));
     }
 
     private boolean isPendingRegistration(AdegaMensalidade monthlyPayment) {
-        LocalDate registrationDate = monthlyPayment.adega.dataCadastro
-                .atZone(BUSINESS_ZONE)
-                .toLocalDate();
+        LocalDate registrationDate = monthlyPayment.adega.dataCadastro.toLocalDate();
         return monthlyPayment.status == StatusPagamento.PENDENTE
                 && monthlyPayment.competencia.equals(registrationDate);
     }
@@ -343,8 +341,8 @@ public class EmailNotificationScheduler {
         return date.format(DATE_FORMAT);
     }
 
-    private String formatDateTime(Instant date) {
-        return date.atZone(BUSINESS_ZONE).format(DATE_TIME_FORMAT);
+    private String formatDateTime(LocalDateTime date) {
+        return date.format(DATE_TIME_FORMAT);
     }
 
     private String formatBillingPeriod(AdegaMensalidade monthlyPayment) {

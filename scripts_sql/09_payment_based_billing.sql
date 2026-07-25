@@ -4,24 +4,12 @@ CREATE TEMPORARY TABLE mensalidade_paga_normalizada AS
 SELECT
     MAX(id) AS id,
     adega_uuid,
-    DATE(
-        CONVERT_TZ(
-            COALESCE(data_pagamento, data_atualizacao),
-            @@session.time_zone,
-            '-03:00'
-        )
-    ) AS data_inicio
+    DATE(COALESCE(data_pagamento, data_atualizacao)) AS data_inicio
 FROM adega_mensalidade
 WHERE status = 'PAGO'
 GROUP BY
     adega_uuid,
-    DATE(
-        CONVERT_TZ(
-            COALESCE(data_pagamento, data_atualizacao),
-            @@session.time_zone,
-            '-03:00'
-        )
-    );
+    DATE(COALESCE(data_pagamento, data_atualizacao));
 
 DELETE mensalidade_conflitante
 FROM adega_mensalidade mensalidade_conflitante
@@ -47,13 +35,7 @@ CREATE TEMPORARY TABLE pagamento_legado_pago AS
 SELECT
     pagamento.adega_uuid,
     COALESCE(pagamento.data_pagamento, pagamento.data_atualizacao) AS data_pagamento,
-    DATE(
-        CONVERT_TZ(
-            COALESCE(pagamento.data_pagamento, pagamento.data_atualizacao),
-            @@session.time_zone,
-            '-03:00'
-        )
-    ) AS data_inicio
+    DATE(COALESCE(pagamento.data_pagamento, pagamento.data_atualizacao)) AS data_inicio
 FROM adega_pagamento pagamento
 WHERE pagamento.status = 'PAGO'
   AND NOT EXISTS (
