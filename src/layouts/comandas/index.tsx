@@ -467,16 +467,25 @@ function Comandas() {
     setLoadingAction(status === "PAGA" ? "close-paga" : "close-fiado");
     setError("");
     try {
-      await comandasApi.close(selectedComanda.uuid, status);
+      const updated = await comandasApi.close(selectedComanda.uuid, status);
       const nextAbertas = comandasAbertas.filter(
         (comanda) => comanda.uuid !== selectedComanda.uuid
       );
-      const nextFiado = comandasFiado.filter(
+      const fiadoSemComandaAtual = comandasFiado.filter(
         (comanda) => comanda.uuid !== selectedComanda.uuid
       );
+      const nextFiado =
+        status === "FIADO"
+          ? [updated, ...fiadoSemComandaAtual]
+          : fiadoSemComandaAtual;
+
       setComandasAbertas(nextAbertas);
       setComandasFiado(nextFiado);
-      setSelectedUuid(nextAbertas[0]?.uuid || nextFiado[0]?.uuid || "");
+      setSelectedUuid(
+        status === "FIADO"
+          ? updated.uuid
+          : nextAbertas[0]?.uuid || nextFiado[0]?.uuid || ""
+      );
       setClosingDialog(false);
     } catch (closeError) {
       setError(getApiErrorMessage(closeError));
