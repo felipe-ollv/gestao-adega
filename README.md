@@ -1,6 +1,6 @@
-# Gestão Adega
+# Gestão Comércio
 
-Sistema de gestão para adega com frontend React/Vite, backend Quarkus, MySQL e Docker Compose.
+Sistema de gestão para comercio com frontend React/Vite, backend Quarkus, MySQL e Docker Compose.
 
 ## Rodar com Docker
 
@@ -13,7 +13,7 @@ Acesse:
 - Frontend: http://localhost
 - Backend health: http://localhost/api/health
 
-O primeiro acesso deve ser feito em **Nova adega**, na tela de login. Esse cadastro cria a adega e o usuário gestor.
+O primeiro acesso deve ser feito em **Novo Comércio**, na tela de login. Esse cadastro cria o comercio e o usuário gestor.
 
 ## Serviços
 
