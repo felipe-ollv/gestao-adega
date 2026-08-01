@@ -39,6 +39,7 @@ export type ComandaItem = {
   subtotal: number;
   grupoUuid?: string | null;
   ordemGrupo?: number | null;
+  dataAdicao: string;
 };
 
 export type ComandaItemInput = {
@@ -71,14 +72,19 @@ export type Usuario = {
 
 export const authApi = {
   login: (email: string, senha: string) =>
-    api.post<AuthResponse>("/auth/login", { email, senha }).then((response) => response.data),
+    api
+      .post<AuthResponse>("/auth/login", { email, senha })
+      .then((response) => response.data),
   register: (payload: {
     nomeAdega: string;
     cnpjCpf: string;
     nomeUsuario: string;
     email: string;
     senha: string;
-  }) => api.post<AuthResponse>("/auth/register", payload).then((response) => response.data),
+  }) =>
+    api
+      .post<AuthResponse>("/auth/register", payload)
+      .then((response) => response.data),
 };
 
 export const produtosApi = {
@@ -86,7 +92,9 @@ export const produtosApi = {
   create: (payload: Omit<Produto, "uuid">) =>
     api.post<Produto>("/produtos", payload).then((response) => response.data),
   update: (uuid: string, payload: Omit<Produto, "uuid">) =>
-    api.put<Produto>(`/produtos/${uuid}`, payload).then((response) => response.data),
+    api
+      .put<Produto>(`/produtos/${uuid}`, payload)
+      .then((response) => response.data),
   delete: (uuid: string) => api.delete(`/produtos/${uuid}`),
 };
 
@@ -96,12 +104,13 @@ export const comandasApi = {
       .get<Comanda[]>("/comandas", { params: status ? { status } : undefined })
       .then((response) => response.data),
   open: (nomeResponsavel: string) =>
-    api.post<Comanda>("/comandas", { nomeResponsavel }).then((response) => response.data),
-  addItem: (
-    comandaUuid: string,
-    payload: ComandaItemInput
-  ) =>
-    api.post<Comanda>(`/comandas/${comandaUuid}/itens`, payload).then((response) => response.data),
+    api
+      .post<Comanda>("/comandas", { nomeResponsavel })
+      .then((response) => response.data),
+  addItem: (comandaUuid: string, payload: ComandaItemInput) =>
+    api
+      .post<Comanda>(`/comandas/${comandaUuid}/itens`, payload)
+      .then((response) => response.data),
   addItems: (comandaUuid: string, itens: ComandaItemInput[]) =>
     api
       .post<Comanda>(`/comandas/${comandaUuid}/itens/lote`, { itens })
@@ -111,11 +120,20 @@ export const comandasApi = {
     itemUuid: string,
     payload: ComandaItemInput
   ) =>
-    api.put<Comanda>(`/comandas/${comandaUuid}/itens/${itemUuid}`, payload).then((response) => response.data),
+    api
+      .put<Comanda>(`/comandas/${comandaUuid}/itens/${itemUuid}`, payload)
+      .then((response) => response.data),
   deleteItem: (comandaUuid: string, itemUuid: string) =>
-    api.delete<Comanda>(`/comandas/${comandaUuid}/itens/${itemUuid}`).then((response) => response.data),
-  close: (comandaUuid: string, status: Exclude<StatusComanda, "ABERTA" | "EXCLUIDA">) =>
-    api.patch<Comanda>(`/comandas/${comandaUuid}/fechar`, { status }).then((response) => response.data),
+    api
+      .delete<Comanda>(`/comandas/${comandaUuid}/itens/${itemUuid}`)
+      .then((response) => response.data),
+  close: (
+    comandaUuid: string,
+    status: Exclude<StatusComanda, "ABERTA" | "EXCLUIDA">
+  ) =>
+    api
+      .patch<Comanda>(`/comandas/${comandaUuid}/fechar`, { status })
+      .then((response) => response.data),
   payPartial: (comandaUuid: string, valor: number) =>
     api
       .patch<Comanda>(`/comandas/${comandaUuid}/pagamento-parcial`, { valor })
@@ -126,14 +144,30 @@ export const comandasApi = {
 
 export const usuariosApi = {
   list: () => api.get<Usuario[]>("/usuarios").then((response) => response.data),
-  create: (payload: { nome: string; email: string; senha: string; perfil: PerfilUsuario }) =>
+  create: (payload: {
+    nome: string;
+    email: string;
+    senha: string;
+    perfil: PerfilUsuario;
+  }) =>
     api.post<Usuario>("/usuarios", payload).then((response) => response.data),
   update: (
     uuid: string,
-    payload: { nome: string; email: string; senha?: string; perfil: PerfilUsuario; ativo: boolean }
-  ) => api.put<Usuario>(`/usuarios/${uuid}`, payload).then((response) => response.data),
+    payload: {
+      nome: string;
+      email: string;
+      senha?: string;
+      perfil: PerfilUsuario;
+      ativo: boolean;
+    }
+  ) =>
+    api
+      .put<Usuario>(`/usuarios/${uuid}`, payload)
+      .then((response) => response.data),
   delete: (uuid: string) => api.delete(`/usuarios/${uuid}`),
 };
 
 export const getApiErrorMessage = (error: any) =>
-  error?.response?.data?.error || error?.message || "Não foi possível concluir a operação.";
+  error?.response?.data?.error ||
+  error?.message ||
+  "Não foi possível concluir a operação.";

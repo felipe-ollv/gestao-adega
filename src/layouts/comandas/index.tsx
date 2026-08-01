@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, SyntheticEvent, useEffect, useMemo, useState } from "react";
 
 import Alert from "@mui/material/Alert";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -14,6 +14,8 @@ import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import Icon from "@mui/material/Icon";
 import IconButton from "@mui/material/IconButton";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import ToggleButton from "@mui/material/ToggleButton";
@@ -40,6 +42,13 @@ const currency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
+const comandaDate = new Intl.DateTimeFormat("pt-BR", {
+  weekday: "long",
+  day: "2-digit",
+  month: "long",
+  year: "numeric",
+});
+const comandaShortDate = new Intl.DateTimeFormat("pt-BR");
 const normalizeSearch = (value: string) =>
   value
     .normalize("NFD")
@@ -57,6 +66,16 @@ type ComandaEntry = {
   items: ComandaItem[];
   grouped: boolean;
 };
+type ComandaDayGroup = {
+  key: string;
+  label: string;
+  copyLabel: string;
+  subtotal: number;
+  entries: ComandaEntry[];
+};
+type ComandaDisplayItem =
+  | { type: "day"; key: string; dayGroup: ComandaDayGroup }
+  | { type: "entry"; key: string; entry: ComandaEntry };
 type LoadingAction =
   | "open"
   | "add"
@@ -67,6 +86,7 @@ type LoadingAction =
   | "delete-comanda"
   | `increment-${string}`
   | `delete-${string}`;
+type ComandasTab = "ABERTA" | "FIADO";
 
 function Comandas() {
   const { isGestor } = useUser();
@@ -74,6 +94,7 @@ function Comandas() {
   const [comandasFiado, setComandasFiado] = useState<Comanda[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [selectedUuid, setSelectedUuid] = useState("");
+  const [comandasTab, setComandasTab] = useState<ComandasTab>("ABERTA");
   const [filtroAbertas, setFiltroAbertas] = useState("");
   const [filtroFiado, setFiltroFiado] = useState("");
   const [novoResponsavel, setNovoResponsavel] = useState("");
@@ -95,17 +116,14 @@ function Comandas() {
     null
   );
 
-  const allComandas = useMemo(
-    () => [...comandasAbertas, ...comandasFiado],
-    [comandasAbertas, comandasFiado]
-  );
-
-  const selectedComanda = useMemo(
-    () =>
-      allComandas.find((comanda) => comanda.uuid === selectedUuid) ||
-      allComandas[0],
-    [allComandas, selectedUuid]
-  );
+  const selectedComanda = useMemo(() => {
+    const comandasDaAba =
+      comandasTab === "ABERTA" ? comandasAbertas : comandasFiado;
+    return (
+      comandasDaAba.find((comanda) => comanda.uuid === selectedUuid) ||
+      comandasDaAba[0]
+    );
+  }, [comandasAbertas, comandasFiado, comandasTab, selectedUuid]);
 
   const comandasAbertasFiltradas = useMemo(() => {
     const filtro = normalizeSearch(filtroAbertas);
@@ -131,37 +149,90 @@ function Comandas() {
   const selectedDraftProducts = itemDrafts.map((draft) => draft.produto);
   const actionLoading = Boolean(loadingAction);
 
-  const comandaEntries = useMemo<ComandaEntry[]>(() => {
+  const comandaDayGroups = useMemo<ComandaDayGroup[]>(() => {
     if (!selectedComanda) return [];
 
-    const entries: ComandaEntry[] = [];
-    const groupedEntries = new Map<string, ComandaEntry>();
-
+    const itemsByDate = new Map<string, ComandaItem[]>();
     selectedComanda.itens.forEach((item) => {
-      if (!item.grupoUuid) {
-        entries.push({ key: item.uuid, items: [item], grouped: false });
-        return;
-      }
-
-      const existing = groupedEntries.get(item.grupoUuid);
-      if (existing) {
-        existing.items.push(item);
-        return;
-      }
-
-      const entry = { key: item.grupoUuid, items: [item], grouped: true };
-      groupedEntries.set(item.grupoUuid, entry);
-      entries.push(entry);
-    });
-
-    return entries.map((entry) => {
-      const items = [...entry.items].sort(
-        (first, second) =>
-          Number(first.ordemGrupo ?? 0) - Number(second.ordemGrupo ?? 0)
+      const dateKey = (item.dataAdicao || selectedComanda.dataAbertura).slice(
+        0,
+        10
       );
-      return { ...entry, items, grouped: entry.grouped && items.length > 1 };
+      const items = itemsByDate.get(dateKey) || [];
+      items.push(item);
+      itemsByDate.set(dateKey, items);
     });
+
+    return [...itemsByDate.entries()]
+      .sort(([firstDate], [secondDate]) => secondDate.localeCompare(firstDate))
+      .map(([dateKey, dayItems]) => {
+        const entries: ComandaEntry[] = [];
+        const groupedEntries = new Map<string, ComandaEntry>();
+
+        [...dayItems]
+          .sort((first, second) =>
+            (first.dataAdicao || "").localeCompare(second.dataAdicao || "")
+          )
+          .forEach((item) => {
+            if (!item.grupoUuid) {
+              entries.push({ key: item.uuid, items: [item], grouped: false });
+              return;
+            }
+
+            const existing = groupedEntries.get(item.grupoUuid);
+            if (existing) {
+              existing.items.push(item);
+              return;
+            }
+
+            const entry = {
+              key: item.grupoUuid,
+              items: [item],
+              grouped: true,
+            };
+            groupedEntries.set(item.grupoUuid, entry);
+            entries.push(entry);
+          });
+
+        const normalizedEntries = entries.map((entry) => {
+          const items = [...entry.items].sort(
+            (first, second) =>
+              Number(first.ordemGrupo ?? 0) - Number(second.ordemGrupo ?? 0)
+          );
+          return {
+            ...entry,
+            items,
+            grouped: entry.grouped && items.length > 1,
+          };
+        });
+        const date = new Date(`${dateKey}T12:00:00`);
+        const label = comandaDate.format(date);
+
+        return {
+          key: dateKey,
+          label: label.charAt(0).toLocaleUpperCase("pt-BR") + label.slice(1),
+          copyLabel: comandaShortDate.format(date),
+          subtotal: dayItems.reduce(
+            (total, item) => total + Number(item.subtotal),
+            0
+          ),
+          entries: normalizedEntries,
+        };
+      });
   }, [selectedComanda]);
+
+  const comandaDisplayItems = useMemo<ComandaDisplayItem[]>(
+    () =>
+      comandaDayGroups.flatMap((dayGroup) => [
+        { type: "day", key: `day-${dayGroup.key}`, dayGroup },
+        ...dayGroup.entries.map((entry) => ({
+          type: "entry" as const,
+          key: `entry-${entry.key}`,
+          entry,
+        })),
+      ]),
+    [comandaDayGroups]
+  );
 
   const editProdutoOptions = useMemo(() => {
     if (!editingItem?.grupoUuid || !selectedComanda) return produtos;
@@ -208,8 +279,11 @@ function Comandas() {
       setComandasAbertas(abertasData);
       setComandasFiado(fiadoData);
       setProdutos(produtosData);
-      if (!selectedUuid && (abertasData[0] || fiadoData[0])) {
-        setSelectedUuid((abertasData[0] || fiadoData[0]).uuid);
+      if (!selectedUuid && abertasData[0]) {
+        setSelectedUuid(abertasData[0].uuid);
+      } else if (!selectedUuid && fiadoData[0]) {
+        setComandasTab("FIADO");
+        setSelectedUuid(fiadoData[0].uuid);
       }
     } catch (loadError) {
       setError(getApiErrorMessage(loadError));
@@ -230,6 +304,7 @@ function Comandas() {
       const comanda = await comandasApi.open(novoResponsavel);
       setComandasAbertas((current) => [comanda, ...current]);
       setSelectedUuid(comanda.uuid);
+      setComandasTab("ABERTA");
       setNovoResponsavel("");
     } catch (openError) {
       setError(getApiErrorMessage(openError));
@@ -317,22 +392,37 @@ function Comandas() {
     const lines = [
       `Comanda: ${selectedComanda.nomeResponsavel}`,
       "",
-      "Produtos:",
+      "Lançamentos:",
     ];
-    comandaEntries.forEach((entry) => {
-      if (entry.grouped) {
-        lines.push(
-          `- Combo: ${entry.items.map((item) => item.produtoNome).join(" + ")}`
-        );
-        entry.items.forEach((item) => lines.push(formatItem(item, "  - ")));
-      } else {
-        lines.push(formatItem(entry.items[0], "- "));
-      }
+    comandaDayGroups.forEach((dayGroup) => {
+      lines.push("", `Data: ${dayGroup.copyLabel}`);
+      dayGroup.entries.forEach((entry) => {
+        if (entry.grouped) {
+          lines.push(
+            `- Combo: ${entry.items
+              .map((item) => item.produtoNome)
+              .join(" + ")}`
+          );
+          entry.items.forEach((item) => lines.push(formatItem(item, "  - ")));
+        } else {
+          lines.push(formatItem(entry.items[0], "- "));
+        }
+      });
+      lines.push(`Subtotal do dia: ${currency.format(dayGroup.subtotal)}`);
     });
-    lines.push(
-      "",
-      `Total da comanda: ${currency.format(Number(selectedComanda.total || 0))}`
+    const total = Number(selectedComanda.total || 0);
+    const valorPago = Number(selectedComanda.valorPagoParcial || 0);
+    const saldoPendente = Number(
+      selectedComanda.saldoPendente ?? total - valorPago
     );
+
+    lines.push("", `Total da comanda: ${currency.format(total)}`);
+    if (valorPago > 0) {
+      lines.push(
+        `Valor pago: ${currency.format(valorPago)}`,
+        `Saldo restante: ${currency.format(saldoPendente)}`
+      );
+    }
 
     try {
       const text = lines.join("\n");
@@ -484,8 +574,11 @@ function Comandas() {
       setSelectedUuid(
         status === "FIADO"
           ? updated.uuid
-          : nextAbertas[0]?.uuid || nextFiado[0]?.uuid || ""
+          : selectedIsFiado
+          ? nextFiado[0]?.uuid || ""
+          : nextAbertas[0]?.uuid || ""
       );
+      if (status === "FIADO") setComandasTab("FIADO");
       setClosingDialog(false);
     } catch (closeError) {
       setError(getApiErrorMessage(closeError));
@@ -510,7 +603,11 @@ function Comandas() {
       );
       setComandasAbertas(nextAbertas);
       setComandasFiado(nextFiado);
-      setSelectedUuid(nextAbertas[0]?.uuid || nextFiado[0]?.uuid || "");
+      setSelectedUuid(
+        comandasTab === "ABERTA"
+          ? nextAbertas[0]?.uuid || ""
+          : nextFiado[0]?.uuid || ""
+      );
       setDeleteDialog(false);
       setDeleteObservation("");
       setProdutos(await produtosApi.list());
@@ -518,6 +615,18 @@ function Comandas() {
       setError(getApiErrorMessage(deleteError));
     } finally {
       setLoadingAction(null);
+    }
+  };
+
+  const handleTabChange = (_: SyntheticEvent, nextTab: ComandasTab) => {
+    setComandasTab(nextTab);
+
+    const comandasDaAba =
+      nextTab === "ABERTA" ? comandasAbertas : comandasFiado;
+    if (
+      !comandasDaAba.some((comanda) => comanda.uuid === selectedComanda?.uuid)
+    ) {
+      setSelectedUuid(comandasDaAba[0]?.uuid || "");
     }
   };
 
@@ -591,9 +700,70 @@ function Comandas() {
             </Card>
 
             <MDBox mt={3}>
+              <Card sx={{ borderRadius: 0, boxShadow: "none" }}>
+                <Tabs
+                  value={comandasTab}
+                  onChange={handleTabChange}
+                  variant="fullWidth"
+                  aria-label="Visualização das comandas"
+                  sx={{
+                    minHeight: 54,
+                    p: 0,
+                    bgcolor: "transparent",
+                    borderRadius: 0,
+                    borderBottom: "1px solid #e5e7eb",
+                    "& .MuiTabs-flexContainer": { height: 54 },
+                    "& .MuiTabs-indicator": {
+                      height: 3,
+                      borderRadius: 0,
+                      bgcolor: "info.main",
+                      boxShadow: "none",
+                    },
+                  }}
+                >
+                  <Tab
+                    id="comandas-tab-abertas"
+                    aria-controls="comandas-panel-abertas"
+                    value="ABERTA"
+                    label="Abertas"
+                    sx={{
+                      minHeight: 54,
+                      borderRadius: 0,
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                    }}
+                  />
+                  <Tab
+                    id="comandas-tab-fiado"
+                    aria-controls="comandas-panel-fiado"
+                    value="FIADO"
+                    label="Fiado"
+                    sx={{
+                      minHeight: 54,
+                      borderRadius: 0,
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                    }}
+                  />
+                </Tabs>
+              </Card>
+            </MDBox>
+
+            <MDBox
+              id="comandas-panel-abertas"
+              role="tabpanel"
+              aria-labelledby="comandas-tab-abertas"
+              mt={3}
+              display={comandasTab === "ABERTA" ? "block" : "none"}
+            >
               <Card>
                 <MDBox p={3}>
-                  <MDTypography variant="h6" fontWeight="medium" mb={2}>
+                  <MDTypography
+                    variant="h6"
+                    fontWeight="medium"
+                    mb={2}
+                    display="none"
+                  >
                     Comandas abertas
                   </MDTypography>
                   <TextField
@@ -687,10 +857,21 @@ function Comandas() {
               </Card>
             </MDBox>
 
-            <MDBox mt={3}>
+            <MDBox
+              id="comandas-panel-fiado"
+              role="tabpanel"
+              aria-labelledby="comandas-tab-fiado"
+              mt={3}
+              display={comandasTab === "FIADO" ? "block" : "none"}
+            >
               <Card>
                 <MDBox p={3}>
-                  <MDTypography variant="h6" fontWeight="medium" mb={2}>
+                  <MDTypography
+                    variant="h6"
+                    fontWeight="medium"
+                    mb={2}
+                    display="none"
+                  >
                     Comandas no fiado
                   </MDTypography>
                   <TextField
@@ -817,19 +998,17 @@ function Comandas() {
                       flexWrap="wrap"
                       justifyContent="flex-end"
                     >
-                      {!selectedIsFiado && (
-                        <MDButton
-                          variant="outlined"
-                          color="success"
-                          disabled={actionLoading || selectedBalanceValue <= 0}
-                          onClick={() => {
-                            setPartialPaymentValue("");
-                            setPartialPaymentDialog(true);
-                          }}
-                        >
-                          Baixa parcial
-                        </MDButton>
-                      )}
+                      <MDButton
+                        variant="outlined"
+                        color="success"
+                        disabled={actionLoading || selectedBalanceValue <= 0}
+                        onClick={() => {
+                          setPartialPaymentValue("");
+                          setPartialPaymentDialog(true);
+                        }}
+                      >
+                        Baixa parcial
+                      </MDButton>
                       {selectedIsFiado && (
                         <MDButton
                           variant="outlined"
@@ -874,190 +1053,217 @@ function Comandas() {
 
                 {selectedComanda && (
                   <>
-                    {!selectedIsFiado && (
-                      <MDBox component="form" onSubmit={handleAddItem} mb={3}>
-                        <Grid container spacing={2} alignItems="center">
-                          <Grid item xs={12}>
-                            <Autocomplete
-                              multiple
-                              openOnFocus
-                              disableCloseOnSelect
-                              options={produtos}
-                              value={selectedDraftProducts}
-                              getOptionLabel={(produto) =>
-                                `${produto.nome} (${produto.quantidadeEstoqueUnidades} un.)`
-                              }
-                              isOptionEqualToValue={(option, value) =>
-                                option.uuid === value.uuid
-                              }
-                              noOptionsText="Nenhum produto encontrado"
-                              onChange={(_, selectedProducts) =>
-                                handleSelectedProducts(selectedProducts)
-                              }
-                              renderTags={(selectedProducts, getTagProps) =>
-                                selectedProducts.map((produto, index) => {
-                                  const { key, ...chipProps } = getTagProps({
-                                    index,
-                                  });
-                                  return (
-                                    <MDBox
-                                      key={key}
-                                      component="span"
-                                      display="inline-flex"
-                                      alignItems="center"
-                                    >
-                                      <Chip
-                                        {...chipProps}
-                                        label={produto.nome}
-                                        size="small"
-                                      />
-                                      {index < selectedProducts.length - 1 && (
-                                        <MDTypography
-                                          component="span"
-                                          variant="button"
-                                          fontWeight="bold"
-                                          mx={0.5}
-                                        >
-                                          +
-                                        </MDTypography>
-                                      )}
-                                    </MDBox>
-                                  );
-                                })
-                              }
-                              renderInput={(params) => (
-                                <TextField
-                                  {...params}
-                                  label="Produtos"
-                                  placeholder={
-                                    itemDrafts.length === 0
-                                      ? "Selecione um ou mais produtos"
-                                      : ""
-                                  }
-                                  fullWidth
-                                />
-                              )}
-                            />
-                          </Grid>
-
-                          {itemDrafts.map((draft) => (
-                            <Grid item xs={12} key={draft.produto.uuid}>
-                              <MDBox
-                                p={1.5}
-                                borderRadius="lg"
-                                sx={{
-                                  border: "1px solid #e5e7eb",
-                                  bgcolor: "#f8fafc",
-                                }}
-                              >
-                                <Grid
-                                  container
-                                  spacing={1.5}
-                                  alignItems="center"
-                                >
-                                  <Grid item xs={12} md={4}>
-                                    <MDTypography
-                                      variant="button"
-                                      fontWeight="medium"
-                                    >
-                                      {draft.produto.nome}
-                                    </MDTypography>
-                                    <MDTypography
-                                      variant="caption"
-                                      color="text"
-                                      display="block"
-                                    >
-                                      {draft.produto.quantidadeEstoqueUnidades}{" "}
-                                      un. em estoque
-                                    </MDTypography>
-                                  </Grid>
-                                  <Grid item xs={12} sm={4} md={2}>
-                                    <TextField
-                                      label="Qtd."
-                                      type="number"
-                                      required
-                                      fullWidth
-                                      inputProps={{ min: 1 }}
-                                      value={draft.quantidade}
-                                      onChange={(event) =>
-                                        updateItemDraft(draft.produto.uuid, {
-                                          quantidade: Number(
-                                            event.target.value
-                                          ),
-                                        })
-                                      }
+                    <MDBox component="form" onSubmit={handleAddItem} mb={3}>
+                      <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12}>
+                          <Autocomplete
+                            multiple
+                            openOnFocus
+                            disableCloseOnSelect
+                            options={produtos}
+                            value={selectedDraftProducts}
+                            getOptionLabel={(produto) =>
+                              `${produto.nome} (${produto.quantidadeEstoqueUnidades} un.)`
+                            }
+                            isOptionEqualToValue={(option, value) =>
+                              option.uuid === value.uuid
+                            }
+                            noOptionsText="Nenhum produto encontrado"
+                            onChange={(_, selectedProducts) =>
+                              handleSelectedProducts(selectedProducts)
+                            }
+                            renderTags={(selectedProducts, getTagProps) =>
+                              selectedProducts.map((produto, index) => {
+                                const { key, ...chipProps } = getTagProps({
+                                  index,
+                                });
+                                return (
+                                  <MDBox
+                                    key={key}
+                                    component="span"
+                                    display="inline-flex"
+                                    alignItems="center"
+                                  >
+                                    <Chip
+                                      {...chipProps}
+                                      label={produto.nome}
+                                      size="small"
                                     />
-                                  </Grid>
-                                  <Grid item xs={12} sm={8} md={6}>
-                                    <ToggleButtonGroup
-                                      color="info"
-                                      exclusive
-                                      fullWidth
-                                      value={draft.tipoMedida}
-                                      onChange={(_, value) =>
-                                        value &&
-                                        updateItemDraft(draft.produto.uuid, {
-                                          tipoMedida: value,
-                                        })
-                                      }
-                                    >
-                                      <ToggleButton value="UNIDADE">
-                                        Unidade{" "}
-                                        {currency.format(
-                                          Number(draft.produto.valorUnidade)
-                                        )}
-                                      </ToggleButton>
-                                      <ToggleButton
-                                        value="CAIXA"
-                                        disabled={!draft.produto.valorCaixa}
+                                    {index < selectedProducts.length - 1 && (
+                                      <MDTypography
+                                        component="span"
+                                        variant="button"
+                                        fontWeight="bold"
+                                        mx={0.5}
                                       >
-                                        Caixa{" "}
-                                        {draft.produto.valorCaixa
-                                          ? currency.format(
-                                              Number(draft.produto.valorCaixa)
-                                            )
-                                          : ""}
-                                      </ToggleButton>
-                                    </ToggleButtonGroup>
-                                  </Grid>
-                                </Grid>
-                              </MDBox>
-                            </Grid>
-                          ))}
+                                        +
+                                      </MDTypography>
+                                    )}
+                                  </MDBox>
+                                );
+                              })
+                            }
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                label="Produtos"
+                                placeholder={
+                                  itemDrafts.length === 0
+                                    ? "Selecione um ou mais produtos"
+                                    : ""
+                                }
+                                fullWidth
+                              />
+                            )}
+                          />
+                        </Grid>
 
-                          <Grid item xs={12}>
+                        {itemDrafts.map((draft) => (
+                          <Grid item xs={12} key={draft.produto.uuid}>
                             <MDBox
+                              p={1.5}
+                              borderRadius="lg"
+                              sx={{
+                                border: "1px solid #e5e7eb",
+                                bgcolor: "#f8fafc",
+                              }}
+                            >
+                              <Grid container spacing={1.5} alignItems="center">
+                                <Grid item xs={12} md={4}>
+                                  <MDTypography
+                                    variant="button"
+                                    fontWeight="medium"
+                                  >
+                                    {draft.produto.nome}
+                                  </MDTypography>
+                                  <MDTypography
+                                    variant="caption"
+                                    color="text"
+                                    display="block"
+                                  >
+                                    {draft.produto.quantidadeEstoqueUnidades}{" "}
+                                    un. em estoque
+                                  </MDTypography>
+                                </Grid>
+                                <Grid item xs={12} sm={4} md={2}>
+                                  <TextField
+                                    label="Qtd."
+                                    type="number"
+                                    required
+                                    fullWidth
+                                    inputProps={{ min: 1 }}
+                                    value={draft.quantidade}
+                                    onChange={(event) =>
+                                      updateItemDraft(draft.produto.uuid, {
+                                        quantidade: Number(event.target.value),
+                                      })
+                                    }
+                                  />
+                                </Grid>
+                                <Grid item xs={12} sm={8} md={6}>
+                                  <ToggleButtonGroup
+                                    color="info"
+                                    exclusive
+                                    fullWidth
+                                    value={draft.tipoMedida}
+                                    onChange={(_, value) =>
+                                      value &&
+                                      updateItemDraft(draft.produto.uuid, {
+                                        tipoMedida: value,
+                                      })
+                                    }
+                                  >
+                                    <ToggleButton value="UNIDADE">
+                                      Unidade{" "}
+                                      {currency.format(
+                                        Number(draft.produto.valorUnidade)
+                                      )}
+                                    </ToggleButton>
+                                    <ToggleButton
+                                      value="CAIXA"
+                                      disabled={!draft.produto.valorCaixa}
+                                    >
+                                      Caixa{" "}
+                                      {draft.produto.valorCaixa
+                                        ? currency.format(
+                                            Number(draft.produto.valorCaixa)
+                                          )
+                                        : ""}
+                                    </ToggleButton>
+                                  </ToggleButtonGroup>
+                                </Grid>
+                              </Grid>
+                            </MDBox>
+                          </Grid>
+                        ))}
+
+                        <Grid item xs={12}>
+                          <MDBox
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            gap={2}
+                            flexWrap="wrap"
+                          >
+                            <MDTypography variant="button" color="text">
+                              Prévia: {currency.format(totalPreview)}
+                            </MDTypography>
+                            <MDButton
+                              type="submit"
+                              variant="gradient"
+                              color="info"
+                              disabled={
+                                itemDrafts.length === 0 ||
+                                !draftsValidos ||
+                                (actionLoading && loadingAction !== "add")
+                              }
+                              loading={loadingAction === "add"}
+                              loadingText="Adicionando..."
+                            >
+                              Adicionar
+                            </MDButton>
+                          </MDBox>
+                        </Grid>
+                      </Grid>
+                    </MDBox>
+
+                    <MDBox display="flex" flexDirection="column" gap={1.5}>
+                      {comandaDisplayItems.map((displayItem) => {
+                        if (displayItem.type === "day") {
+                          const { dayGroup } = displayItem;
+                          return (
+                            <MDBox
+                              key={displayItem.key}
                               display="flex"
                               justifyContent="space-between"
                               alignItems="center"
                               gap={2}
-                              flexWrap="wrap"
+                              mt={1}
+                              px={0.5}
                             >
-                              <MDTypography variant="button" color="text">
-                                Prévia: {currency.format(totalPreview)}
-                              </MDTypography>
-                              <MDButton
-                                type="submit"
-                                variant="gradient"
-                                color="info"
-                                disabled={
-                                  itemDrafts.length === 0 ||
-                                  !draftsValidos ||
-                                  (actionLoading && loadingAction !== "add")
-                                }
-                                loading={loadingAction === "add"}
-                                loadingText="Adicionando..."
+                              <MDBox display="flex" alignItems="center" gap={1}>
+                                <Icon color="info" fontSize="small">
+                                  calendar_today
+                                </Icon>
+                                <MDTypography
+                                  variant="button"
+                                  fontWeight="bold"
+                                >
+                                  {dayGroup.label}
+                                </MDTypography>
+                              </MDBox>
+                              <MDTypography
+                                variant="caption"
+                                color="text"
+                                fontWeight="medium"
                               >
-                                Adicionar
-                              </MDButton>
+                                Subtotal: {currency.format(dayGroup.subtotal)}
+                              </MDTypography>
                             </MDBox>
-                          </Grid>
-                        </Grid>
-                      </MDBox>
-                    )}
+                          );
+                        }
 
-                    <MDBox display="flex" flexDirection="column" gap={1.5}>
-                      {comandaEntries.map((entry) => {
+                        const { entry } = displayItem;
                         if (!entry.grouped) {
                           const item = entry.items[0];
                           return (

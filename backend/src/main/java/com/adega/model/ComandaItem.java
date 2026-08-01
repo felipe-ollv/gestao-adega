@@ -1,5 +1,6 @@
 package com.adega.model;
 
+import com.adega.util.BusinessTime;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,8 +12,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -56,10 +59,16 @@ public class ComandaItem extends PanacheEntityBase {
     @Column(name = "ordem_grupo")
     public Integer ordemGrupo;
 
-    @jakarta.persistence.PrePersist
+    @Column(name = "data_adicao", nullable = false)
+    public LocalDateTime dataAdicao;
+
+    @PrePersist
     void prePersist() {
         if (uuid == null) {
             uuid = UUID.randomUUID();
+        }
+        if (dataAdicao == null) {
+            dataAdicao = BusinessTime.now();
         }
     }
 }

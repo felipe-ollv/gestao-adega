@@ -36,6 +36,10 @@ public class AuthService {
         String email = normalizeEmail(request.email());
         String documento = onlyDigits(request.cnpjCpf());
 
+        if (documento.length() != 11 && documento.length() != 14) {
+            throw new BusinessException("Informe um CPF com 11 dígitos ou um CNPJ com 14 dígitos.");
+        }
+
         if (usuarioRepository.findByEmail(email).isPresent()) {
             throw new BusinessException("E-mail já cadastrado.");
         }

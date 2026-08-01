@@ -14,6 +14,7 @@ import com.adega.dto.AdicionarItemRequest;
 import com.adega.dto.AdicionarItensRequest;
 import com.adega.dto.ComandaResponse;
 import com.adega.dto.AtualizarItemRequest;
+import com.adega.dto.PagamentoParcialComandaRequest;
 import com.adega.exception.BusinessException;
 import com.adega.model.Comanda;
 import com.adega.model.ComandaItem;
@@ -90,6 +91,81 @@ class ComandaServiceTest {
         assertEquals(response.itens().get(0).grupoUuid(), response.itens().get(1).grupoUuid());
         assertEquals(0, response.itens().get(0).ordemGrupo());
         assertEquals(1, response.itens().get(1).ordemGrupo());
+        assertNotNull(response.itens().get(0).dataAdicao());
+        assertEquals(response.itens().get(0).dataAdicao(), response.itens().get(1).dataAdicao());
+    }
+
+    @Test
+    void addsItemsToCreditComandaAndRecordsAdditionDate() {
+        Comanda comanda = openComanda();
+        comanda.status = StatusComanda.FIADO;
+        Produto cerveja = produto("Cerveja", 12, 1, "8.00", null);
+        stubComanda(comanda);
+        stubProduto(cerveja);
+
+        ComandaResponse response = service.addItem(
+                comandaUuid,
+                new AdicionarItemRequest(cerveja.uuid, 2, TipoMedidaVenda.UNIDADE)
+        );
+
+        assertEquals(StatusComanda.FIADO, response.status());
+        assertEquals(10, cerveja.quantidadeEstoqueUnidades);
+        assertEquals(new BigDecimal("16.00"), response.total());
+        assertNotNull(response.itens().get(0).dataAdicao());
+    }
+
+    @Test
+    void rejectsAddingItemsToPaidComanda() {
+        Comanda comanda = openComanda();
+        comanda.status = StatusComanda.PAGA;
+        Produto cerveja = produto("Cerveja", 12, 1, "8.00", null);
+        stubComanda(comanda);
+
+        assertThrows(
+                BusinessException.class,
+                () -> service.addItem(
+                        comandaUuid,
+                        new AdicionarItemRequest(cerveja.uuid, 1, TipoMedidaVenda.UNIDADE)
+                )
+        );
+
+        verify(produtoRepository, never()).findByUuidAndAdega(any(), any());
+    }
+
+    @Test
+    void acceptsPartialPaymentOnCreditComanda() {
+        Comanda comanda = openComanda();
+        comanda.status = StatusComanda.FIADO;
+        comanda.valorPagoParcial = new BigDecimal("5.00");
+        Produto cerveja = produto("Cerveja", 10, 1, "10.00", null);
+        ComandaItem item = item(comanda, cerveja, null, 0);
+        item.quantidadePedida = 2;
+        comanda.itens.add(item);
+        stubComanda(comanda);
+
+        ComandaResponse response = service.payPartial(
+                comandaUuid,
+                new PagamentoParcialComandaRequest(new BigDecimal("7.00"))
+        );
+
+        assertEquals(StatusComanda.FIADO, response.status());
+        assertEquals(new BigDecimal("12.00"), response.valorPagoParcial());
+        assertEquals(new BigDecimal("8.00"), response.saldoPendente());
+    }
+
+    @Test
+    void rejectsPartialPaymentOnPaidComanda() {
+        Comanda comanda = openComanda();
+        comanda.status = StatusComanda.PAGA;
+        stubComanda(comanda);
+
+        assertThrows(
+                BusinessException.class,
+                () -> service.payPartial(
+                        comandaUuid,
+                        new PagamentoParcialComandaRequest(new BigDecimal("1.00"))
+                )
+        );
     }
 
     @Test

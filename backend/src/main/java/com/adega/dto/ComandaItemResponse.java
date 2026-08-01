@@ -3,6 +3,7 @@ package com.adega.dto;
 import com.adega.model.ComandaItem;
 import com.adega.model.TipoMedidaVenda;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record ComandaItemResponse(
@@ -15,7 +16,8 @@ public record ComandaItemResponse(
         BigDecimal valorUnitario,
         BigDecimal subtotal,
         UUID grupoUuid,
-        Integer ordemGrupo
+        Integer ordemGrupo,
+        LocalDateTime dataAdicao
 ) {
     public static ComandaItemResponse from(ComandaItem item) {
         BigDecimal subtotal = item.valorCobradoUnitario.multiply(BigDecimal.valueOf(item.quantidadePedida));
@@ -29,7 +31,8 @@ public record ComandaItemResponse(
                 item.valorCobradoUnitario,
                 subtotal,
                 item.grupoUuid,
-                item.ordemGrupo
+                item.ordemGrupo,
+                item.dataAdicao
         );
     }
 }

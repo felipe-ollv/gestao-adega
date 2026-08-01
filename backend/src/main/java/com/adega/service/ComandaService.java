@@ -25,6 +25,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -75,10 +76,10 @@ public class ComandaService {
     @Transactional
     public ComandaResponse addItem(UUID comandaUuid, AdicionarItemRequest request) {
         Comanda comanda = findCurrentAdegaComanda(comandaUuid);
-        ensureOpen(comanda, "Itens só podem ser adicionados em comandas abertas.");
+        ensureCanAddItems(comanda);
         PreparedItem preparedItem = prepareItem(request);
         ensureStockAvailable(preparedItem.produto(), preparedItem.pricing().unidadesParaDeduzir());
-        persistItem(comanda, preparedItem, null, null);
+        persistItem(comanda, preparedItem, null, null, BusinessTime.now());
 
         return ComandaResponse.from(comanda);
     }
@@ -86,7 +87,7 @@ public class ComandaService {
     @Transactional
     public ComandaResponse addItems(UUID comandaUuid, AdicionarItensRequest request) {
         Comanda comanda = findCurrentAdegaComanda(comandaUuid);
-        ensureOpen(comanda, "Itens só podem ser adicionados em comandas abertas.");
+        ensureCanAddItems(comanda);
 
         Set<UUID> produtosUnicos = request.itens().stream()
                 .map(AdicionarItemRequest::produtoUuid)
@@ -105,8 +106,15 @@ public class ComandaService {
                 ));
 
         UUID grupoUuid = request.itens().size() > 1 ? UUID.randomUUID() : null;
+        LocalDateTime dataAdicao = BusinessTime.now();
         for (int index = 0; index < preparedItems.size(); index++) {
-            persistItem(comanda, preparedItems.get(index), grupoUuid, grupoUuid == null ? null : index);
+            persistItem(
+                    comanda,
+                    preparedItems.get(index),
+                    grupoUuid,
+                    grupoUuid == null ? null : index,
+                    dataAdicao
+            );
         }
 
         return ComandaResponse.from(comanda);
@@ -198,7 +206,7 @@ public class ComandaService {
         }
 
         Comanda comanda = findCurrentAdegaComanda(uuid);
-        ensureOpen(comanda, "Pagamentos parciais só podem ser lançados em comandas abertas.");
+        ensureCanPayPartial(comanda);
 
         BigDecimal total = total(comanda);
         if (total.compareTo(BigDecimal.ZERO) <= 0) {
@@ -255,6 +263,18 @@ public class ComandaService {
         }
     }
 
+    private void ensureCanAddItems(Comanda comanda) {
+        if (comanda.status != StatusComanda.ABERTA && comanda.status != StatusComanda.FIADO) {
+            throw new BusinessException("Itens só podem ser adicionados em comandas abertas ou no fiado.");
+        }
+    }
+
+    private void ensureCanPayPartial(Comanda comanda) {
+        if (comanda.status != StatusComanda.ABERTA && comanda.status != StatusComanda.FIADO) {
+            throw new BusinessException("Pagamentos parciais só podem ser lançados em comandas abertas ou no fiado.");
+        }
+    }
+
     private PreparedItem prepareItem(AdicionarItemRequest request) {
         Produto produto = produtoRepository.findByUuidAndAdega(request.produtoUuid(), securityService.currentAdegaUuid())
                 .filter(candidate -> candidate.ativo)
@@ -267,7 +287,8 @@ public class ComandaService {
             Comanda comanda,
             PreparedItem preparedItem,
             UUID grupoUuid,
-            Integer ordemGrupo
+            Integer ordemGrupo,
+            LocalDateTime dataAdicao
     ) {
         AdicionarItemRequest request = preparedItem.request();
         Produto produto = preparedItem.produto();
@@ -283,6 +304,7 @@ public class ComandaService {
         item.valorCobradoUnitario = pricing.valorAplicado();
         item.grupoUuid = grupoUuid;
         item.ordemGrupo = ordemGrupo;
+        item.dataAdicao = dataAdicao;
         comandaItemRepository.persist(item);
         comanda.itens.add(item);
     }

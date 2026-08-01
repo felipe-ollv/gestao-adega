@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS comanda_item (
     valor_cobrado_unitario DECIMAL(10,2) NOT NULL,
     grupo_uuid BINARY(16) NULL,
     ordem_grupo INT NULL,
+    data_adicao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_item_comanda_uuid FOREIGN KEY (comanda_uuid) REFERENCES comanda(uuid),
     CONSTRAINT fk_item_produto_uuid FOREIGN KEY (produto_uuid) REFERENCES produto(uuid),
     CONSTRAINT chk_item_quantidade CHECK (quantidade_pedida > 0),
